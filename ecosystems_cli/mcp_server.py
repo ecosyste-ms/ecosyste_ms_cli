@@ -154,7 +154,7 @@ class EcosystemsMCPServer:
                 result = await self._call_api(api, operation, path_params, query_params, body)
 
                 # Format the result as JSON string
-                result_text = json.dumps(result, indent=2) if result else "No data returned"
+                result_text = json.dumps(result) if result else "No data returned"
 
                 return [TextContent(type="text", text=result_text)]
 

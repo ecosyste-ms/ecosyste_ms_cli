@@ -90,7 +90,7 @@ class TableFieldSelector:
 
 def _format_json(data: Any, console: Console) -> None:
     """Format and print data as JSON."""
-    json_str = json.dumps(data, indent=2, cls=DateTimeEncoder)
+    json_str = json.dumps(data, cls=DateTimeEncoder)
     # Use plain print to avoid Rich formatting
     print(json_str)
 
