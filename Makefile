@@ -1,4 +1,4 @@
-.PHONY: setup clean test lint format prepare-release docker-build
+.PHONY: setup clean test lint format release docker-build
 
 PYTHON = python3.12
 VENV = .venv
@@ -58,26 +58,15 @@ format:
 	$(BIN)/black .
 	$(BIN)/isort .
 
-prepare-release:
-	@if [ "$(type)" != "major" ] && [ "$(type)" != "minor" ] && [ "$(type)" != "patch" ]; then \
-		echo "Error: type parameter must be 'major', 'minor', or 'patch'"; \
-		echo "Usage: make prepare-release type=<major|minor|patch>"; \
+release:
+	@if [ -z "$(tag)" ]; then \
+		echo "Error: tag parameter required"; \
+		echo "Usage: make release tag=v1.2.3"; \
 		exit 1; \
 	fi
-	@if [ -n "$$(git status --porcelain)" ]; then \
-		echo "Error: Working directory is not clean. Please commit or stash your changes first."; \
-		git status; \
-		exit 1; \
-	fi
-	@echo "Preparing $(type) release..."
-	$(BIN)/pip install commitizen
-	$(BIN)/cz   bump --increment $(type)
-	@current_version=$$(grep -o 'version = "[0-9]\+\.[0-9]\+\.[0-9]\+"' pyproject.toml | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+'); \
-	echo "Version bumped to v$$current_version"; \
-	git push origin main; \
-	git push origin --tags; \
-	echo "Release v$$current_version prepared and pushed!"; \
-	echo "The GitHub Actions workflow will handle the release process."
+	git tag -a $(tag) -m "Release $(tag)"
+	git push origin $(tag)
+	@echo "Tag $(tag) pushed. Pipeline will handle the release."
 
 docker-build:
 	docker build -t ecosystems-cli:dev .
