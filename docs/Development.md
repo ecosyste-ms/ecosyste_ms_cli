@@ -68,11 +68,13 @@ make prepare-release type=minor
 
 ## Releases
 
-This project uses GitHub Actions for automated builds. When you're ready to create a release:
+
+
+This project uses the [release](../.github/workflows/release.yml) GitHub Action which is triggered by a pushing a branch using a semver tags.
 
 1. Tag your commit with a version number:
    ```bash
-   git tag v0.1.0
+   git tag -a v0.1.0
    git push origin v0.1.0
    ```
 

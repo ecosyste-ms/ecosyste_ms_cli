@@ -88,5 +88,4 @@ Use `--help` with any command for detailed usage and examples.
 
 - [Development Guide](docs/DEVELOPMENT.md) - Information about development, testing, and release processes
 - [MCP Server](docs/MCP.md) - **[Experimental]** Model Context Protocol server for AI assistants
-- [Changelog](CHANGELOG.md) - History of changes and releases
 - [License](LICENSE) - MIT License details

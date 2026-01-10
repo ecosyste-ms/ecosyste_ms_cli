@@ -1,55 +1,112 @@
 name: release
 
 on:
-  workflow_run:
-    workflows: ["build-test-lint"]
-    types: [completed]
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-*'
 
-permissions:
-  contents: write
-  packages: write
+# Prevent concurrent releases
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+# Restrict default permissions; jobs define their own
+permissions: {}
 
 jobs:
   release:
+    name: Create Release
     runs-on: ubuntu-latest
-    if: github.event.workflow_run.conclusion == 'success'
+    permissions:
+      contents: write # Create GitHub releases and upload assets
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           fetch-depth: 0
-          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+
+      - name: Validate semver tag
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
+            echo "Error: Tag '$TAG' is not a valid semver tag"
+            exit 1
+          fi
+          echo "TAG_NAME=$TAG" >> $GITHUB_ENV
+
+      - name: Get previous tag
+        id: prev_tag
+        run: |
+          PREV_TAG=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+' | sed -n '2p')
+          if [ -z "$PREV_TAG" ]; then
+            echo "PREV_TAG=" >> $GITHUB_OUTPUT
+            echo "No previous tag found, will generate full changelog"
+          else
+            echo "PREV_TAG=$PREV_TAG" >> $GITHUB_OUTPUT
+            echo "Previous tag: $PREV_TAG"
+          fi
+
+      - name: Generate changelog
+        env:
+          TAG_NAME: ${{ env.TAG_NAME }}
+          PREV_TAG: ${{ steps.prev_tag.outputs.PREV_TAG }}
+        run: |
+          echo "# Changelog for $TAG_NAME" > CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          if [ -n "$PREV_TAG" ]; then
+            echo "## Changes since $PREV_TAG" >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
+            git log "$PREV_TAG".."$TAG_NAME" --pretty=format:"- %s (%h)" --no-merges >> CHANGELOG.md
+          else
+            echo "## All Changes" >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
+            git log --pretty=format:"- %s (%h)" --no-merges >> CHANGELOG.md
+          fi
+          echo "" >> CHANGELOG.md
+          cat CHANGELOG.md
+
+      - name: Update version from tag
+        run: |
+          VERSION=${TAG_NAME#v}
+          echo "Updating version to $VERSION"
+          sed -i "s/^version = .*/version = \"$VERSION\"/" pyproject.toml
+          sed -i "s/^  version: .*/  version: $VERSION/" .cz.yaml
+          sed -i "s/__version__ = .*/__version__ = \"$VERSION\"/" ecosystems_cli/__init__.py
+          echo "Updated versions:"
+          grep "^version" pyproject.toml
+          grep "version:" .cz.yaml
+          grep "__version__" ecosystems_cli/__init__.py
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.12'
 
-      - name: Install dependencies
-        run: pip install twine
+      - name: Build package
+        run: |
+          pip install build wheel
+          python -m build
 
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
+      - name: Upload changelog artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: changelog
+          path: CHANGELOG.md
+          retention-days: 180
+
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: dist
           path: dist/
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ github.event.workflow_run.id }}
-
-      - name: Check if tag push
-        id: check_tag
-        run: |
-          git fetch --tags
-          if [[ $(git tag --points-at HEAD) ]]; then
-            echo "IS_TAG=true" >> $GITHUB_OUTPUT
-            echo "TAG_NAME=$(git tag --points-at HEAD)" >> $GITHUB_OUTPUT
-          else
-            echo "IS_TAG=false" >> $GITHUB_OUTPUT
-          fi
+          retention-days: 90
 
       - name: Create GitHub Release
-        if: steps.check_tag.outputs.IS_TAG == 'true'
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
         with:
-          files: dist/*
-          generate_release_notes: true
-          tag_name: ${{ steps.check_tag.outputs.TAG_NAME }}
+          files: |
+            dist/*
+            CHANGELOG.md
+          body_path: CHANGELOG.md
+          tag_name: ${{ env.TAG_NAME }}
