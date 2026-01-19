@@ -58,7 +58,7 @@ authors = [
     {name = "Sebastian Schürmann", email = "sebs@2xs.org"}
 ]
 license = "MIT"
-readme = "README.md"
+readme = "Readme.md"
 requires-python = ">=3.9"
 keywords = ["ecosystems", "package-manager", "dependencies", "security", "cli"]
 classifiers = [
