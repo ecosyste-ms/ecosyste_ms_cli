@@ -28,9 +28,11 @@ Sets up the development environment by:
 - Creating a Python 3.12 virtual environment in `.venv/`
 - Upgrading pip to the latest version
 - Installing the package in development mode with all dev dependencies
+- Installing pre-commit and setting up git hooks
 
 ### `make clean`
 Cleans up the project directory by removing:
+- Uninstalling pre-commit hooks
 - Virtual environment directory (`.venv/`)
 - Python egg info files
 - Distribution and build directories
@@ -51,37 +53,56 @@ Automatically formats the code using:
 - black for code formatting
 - isort for import ordering
 
-### `make prepare-release type=<major|minor|patch>`
-Prepares a new release by:
-- Validating the release type parameter (must be major, minor, or patch)
-- Checking that the working directory is clean
-- Bumping the version according to the specified type
-- Creating a git tag for the new version
-- Updating the CHANGELOG.md file with changes since the previous release
-- Committing and pushing the changes
-- Pushing the new tag to trigger the release workflow
+### `make bandit`
+Runs security analysis on the source code using Bandit.
 
-Usage example:
-```bash
-make prepare-release type=minor
-```
+### `make black`
+Formats source and test code using black.
+
+### `make isort`
+Sorts imports in source and test code using isort.
+
+### `make fix-all`
+Runs isort, flake8, and black on both source and test code in sequence.
+
+### `make complexipy`
+Runs complexity analysis on the source code using complexipy.
+
+### `make docker-build`
+Builds a Docker image tagged `ecosystems-cli:dev`.
 
 ## Releases
 
+This project uses GitHub Actions workflows for releases and publishing.
 
+### CI: Build, Test, and Lint
 
-This project uses the [release](../.github/workflows/release.yml) GitHub Action which is triggered by a pushing a branch using a semver tags.
+The [build-test-lint](../.github/workflows/build-test-lint.yml) workflow runs automatically on pushes to `main`, `feature/*`, `fix/*`, and `refactor/*` branches. It runs tests, linting, security checks, and builds the package.
 
-1. Tag your commit with a version number:
+### Creating a Release
+
+The [release](../.github/workflows/release.yml) workflow is triggered by pushing a semver tag.
+
+1. Tag your commit and push the tag:
    ```bash
-   git tag -a v0.1.0
-   git push origin v0.1.0
+   git tag v0.2.0
+   git push origin v0.2.0
    ```
 
-2. The GitHub Action will automatically:
-   - Run tests and linting
+2. The workflow will automatically:
+   - Validate the semver tag
+   - Generate a changelog from the git log
+   - Update the version in `pyproject.toml`, `.cz.yaml`, and `ecosystems_cli/__init__.py`
    - Build the package
-   - Create a GitHub release with the built package
+   - Create a GitHub Release with the built artifacts
+
+### Publishing to PyPI
+
+The [publish](../.github/workflows/publish.yml) workflow is triggered manually via `workflow_dispatch` after a release has been created.
+
+1. Go to **Actions > publish** in the GitHub repository
+2. Click **Run workflow** and enter the release version (e.g., `v0.2.0`)
+3. The workflow downloads the release assets and publishes them to PyPI using trusted publishing
 
 ## Conventional Commits
 
