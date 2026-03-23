@@ -15,6 +15,7 @@ from ecosystems_cli.constants import DEFAULT_TIMEOUT
 from ecosystems_cli.exceptions import EcosystemsCLIError
 from ecosystems_cli.helpers.get_domain import build_base_url, get_domain_with_precedence
 from ecosystems_cli.helpers.load_api_spec import load_api_spec
+from ecosystems_cli.helpers.print_output import DateTimeEncoder
 from ecosystems_cli.openapi_client import _factory as api_factory
 
 logger = logging.getLogger(__name__)
@@ -110,6 +111,8 @@ class EcosystemsMCPServer:
                 if name.endswith("_call"):
                     # Generic call tool
                     api = name[:-5]  # Remove '_call' suffix
+                    if api not in self.apis:
+                        return [TextContent(type="text", text=f"Unknown API: {api}")]
                     operation = arguments.get("operation")
                     path_params = arguments.get("path_params", {})
                     query_params = arguments.get("query_params", {})
@@ -121,6 +124,8 @@ class EcosystemsMCPServer:
                         return [TextContent(type="text", text=f"Invalid tool name: {name}")]
 
                     api, operation = parts
+                    if api not in self.apis:
+                        return [TextContent(type="text", text=f"Unknown API: {api}")]
 
                     # Extract parameters from arguments
                     path_params = {}
@@ -154,7 +159,7 @@ class EcosystemsMCPServer:
                 result = await self._call_api(api, operation, path_params, query_params, body)
 
                 # Format the result as JSON string
-                result_text = json.dumps(result) if result else "No data returned"
+                result_text = json.dumps(result, cls=DateTimeEncoder) if result else "No data returned"
 
                 return [TextContent(type="text", text=result_text)]
 

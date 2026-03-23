@@ -56,8 +56,12 @@ def build_base_url(domain: Optional[str], api_name: str) -> Optional[str]:
     if not domain:
         return None
 
+    # Reject plaintext HTTP — all traffic must use HTTPS
+    if domain.startswith("http://"):
+        raise ValueError(f"Insecure HTTP domain rejected: {domain}. Use HTTPS instead.")
+
     # If domain already includes protocol, use as-is
-    if domain.startswith("http://") or domain.startswith("https://"):
+    if domain.startswith("https://"):
         return domain
 
     # Otherwise, assume HTTPS and add /api/v1 path
