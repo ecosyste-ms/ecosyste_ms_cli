@@ -19,6 +19,10 @@ CLAUDE.md
 improvements.txt
 claude_mcp_config.json
 
+# Environment
+.env
+.env.*
+
 # Testing
 .pytest_cache/
 .coverage

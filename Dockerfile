@@ -16,6 +16,10 @@ COPY README.md LICENSE ./
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -e .
 
+# Run as non-root user
+RUN useradd -m -s /bin/bash appuser
+USER appuser
+
 # Expose MCP server (if needed for network access)
 EXPOSE 8000
 

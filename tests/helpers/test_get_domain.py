@@ -1,5 +1,7 @@
 """Tests for the get_domain helper functions."""
 
+import pytest
+
 from ecosystems_cli.helpers.get_domain import build_base_url, get_domain_with_precedence
 
 
@@ -90,10 +92,10 @@ class TestBuildBaseUrl:
         result = build_base_url("api.example.com", "repos")
         assert result == "https://api.example.com/api/v1"
 
-    def test_domain_with_http_preserved(self):
-        """Test that HTTP protocol is preserved."""
-        result = build_base_url("http://api.example.com", "repos")
-        assert result == "http://api.example.com"
+    def test_domain_with_http_rejected(self):
+        """Test that HTTP protocol is rejected."""
+        with pytest.raises(ValueError, match="Insecure HTTP domain rejected"):
+            build_base_url("http://api.example.com", "repos")
 
     def test_domain_with_https_preserved(self):
         """Test that HTTPS protocol is preserved."""

@@ -50,6 +50,8 @@ class OpenAPIClientFactory:
         self._specs: Dict[str, Dict[str, Any]] = {}
         self._openapi: Dict[str, OpenAPI] = {}
         self._operation_map: Dict[str, Dict[str, Any]] = {}
+        self._session = requests.Session()
+        self._session.headers.update({"User-Agent": f"ecosyste_ms_cli ({__version__})"})
 
     def _discover_apis(self) -> List[str]:
         """Discover all available API specs."""
@@ -236,11 +238,9 @@ class OpenAPIClientFactory:
         url = urljoin(base_url, path.lstrip("/"))
 
         # Build headers
-        request_headers = {
-            "User-Agent": f"ecosyste_ms_cli ({__version__})",
-        }
+        request_headers = {}
         if mailto:
-            request_headers["User-Agent"] += f" mailto:{mailto}"
+            request_headers["User-Agent"] = f"ecosyste_ms_cli ({__version__}) mailto:{mailto}"
         if headers:
             request_headers.update(headers)
 
@@ -256,12 +256,12 @@ class OpenAPIClientFactory:
 
         try:
             # Make the HTTP request
-            response = requests.request(
+            response = self._session.request(
                 method=method,
                 url=url,
                 params=params if params else None,
                 json=body if body else None,
-                headers=request_headers,
+                headers=request_headers if request_headers else None,
                 timeout=timeout,
                 allow_redirects=False,  # Handle redirects manually
             )
@@ -297,10 +297,12 @@ class OpenAPIClientFactory:
         if response.status_code < 400:
             return
 
+        error_text = response.text[:500] if response.text else ""
+
         if response.status_code == 401:
-            raise APIAuthenticationError(f"Unauthorized: {response.text}")
+            raise APIAuthenticationError(f"Unauthorized: {error_text}")
         elif response.status_code == 404:
-            raise APINotFoundError(f"Not found: {response.text}")
+            raise APINotFoundError(f"Not found: {error_text}")
         elif response.status_code == 429:
             # Parse rate limit headers if available
             headers = response.headers
@@ -339,9 +341,9 @@ class OpenAPIClientFactory:
                 retry_after=rate_limit_info.get("retry_after"),
             )
         elif response.status_code >= 500:
-            raise APIServerError(response.status_code, f"Server error: {response.text}")
+            raise APIServerError(response.status_code, f"Server error: {error_text}")
         else:
-            raise APIHTTPError(response.status_code, f"HTTP error: {response.text}")
+            raise APIHTTPError(response.status_code, f"HTTP error: {error_text}")
 
     def _parse_response(self, response: requests.Response) -> Any:
         """Parse HTTP response.
