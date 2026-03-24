@@ -15,6 +15,7 @@ class CommitsOperationHandler(OperationHandler):
         "getHostRepositories": [("hostName", ["hostname"])],
         "getHostRepository": [("hostName", ["hostname"]), ("repoName", ["reponame"])],
         "getRepositoryCommits": [("hostName", ["hostname"]), ("repoName", ["reponame"])],
+        "getHostCommitter": [("hostName", ["hostname"]), ("login", ["login"])],
     }
 
     def _extract_param(self, kwargs: dict, api_name: str, lowercase_variants: List[str]) -> Optional[str]:

@@ -38,6 +38,11 @@ class PackagesOperationHandler(OperationHandler):
             ("packageName", ["packagename"]),
             ("versionNumber", ["versionnumber"]),
         ],
+        "getRegistryPackageVersionCodeMeta": [
+            ("registryName", ["registryname"]),
+            ("packageName", ["packagename"]),
+            ("versionNumber", ["versionnumber"]),
+        ],
     }
 
     def _extract_param(self, kwargs: dict, api_name: str, lowercase_variants: List[str]) -> Optional[str]:

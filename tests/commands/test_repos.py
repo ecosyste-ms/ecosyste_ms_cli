@@ -182,3 +182,148 @@ class TestReposCommands:
 
         assert result.exit_code == 0
         mock_print_error.assert_called_once_with("Unexpected error: Topic not found", console=mock.ANY)
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_usage_package_dependent_repositories(self, mock_print_output, mock_api_factory):
+        """Test getting dependent repositories for a package."""
+        mock_api_factory.call.return_value = [
+            {"name": "my-app", "host": "github.com", "stars": 50},
+            {"name": "another-app", "host": "github.com", "stars": 10},
+        ]
+
+        result = self.runner.invoke(
+            self.repos_group,
+            [
+                "usage_package_dependent_repositories",
+                "express",
+                "npm",
+                "--page",
+                "1",
+                "--per-page",
+                "10",
+                "--sort",
+                "stargazers_count",
+                "--order",
+                "desc",
+            ],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "repos",
+            "usagePackageDependentRepositories",
+            path_params={"ecosystem": "npm", "package": "express"},
+            query_params={"page": 1, "per_page": 10, "sort": "stargazers_count", "order": "desc"},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+        )
+        mock_print_output.assert_called_once()
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_usage_package_dependent_repositories_with_filters(self, mock_print_output, mock_api_factory):
+        """Test dependent repositories with min_stars filter."""
+        mock_api_factory.call.return_value = []
+
+        result = self.runner.invoke(
+            self.repos_group,
+            [
+                "usage_package_dependent_repositories",
+                "express",
+                "npm",
+                "--min-stars",
+                "100",
+            ],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "repos",
+            "usagePackageDependentRepositories",
+            path_params={"ecosystem": "npm", "package": "express"},
+            query_params={"min_stars": 100},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+        )
+        mock_print_output.assert_called_once()
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_get_host_owner_sponsors_logins(self, mock_print_output, mock_api_factory):
+        """Test getting owner logins with sponsors listings."""
+        mock_api_factory.call.return_value = ["octocat", "torvalds", "gvanrossum"]
+
+        result = self.runner.invoke(
+            self.repos_group,
+            ["get_host_owner_sponsors_logins", "GitHub"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "repos",
+            "getHostOwnerSponsorsLogins",
+            path_params={"hostName": "GitHub"},
+            query_params={},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+        )
+        mock_print_output.assert_called_once()
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_get_host_owners_with_kind_filter(self, mock_print_output, mock_api_factory):
+        """Test getting host owners filtered by kind."""
+        mock_api_factory.call.return_value = [
+            {"login": "my-org", "repositories_count": 50},
+        ]
+
+        result = self.runner.invoke(
+            self.repos_group,
+            ["get_host_owners", "GitHub", "--kind", "organization"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "repos",
+            "getHostOwners",
+            path_params={"hostName": "GitHub"},
+            query_params={"kind": "organization"},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+        )
+        mock_print_output.assert_called_once()
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_usage_package_dependencies_with_pagination(self, mock_print_output, mock_api_factory):
+        """Test usage package dependencies with new pagination params."""
+        mock_api_factory.call.return_value = [
+            {"name": "body-parser", "version": "1.20.1"},
+        ]
+
+        result = self.runner.invoke(
+            self.repos_group,
+            ["usage_package_dependencies", "express", "npm", "--page", "1", "--per-page", "10"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "repos",
+            "usagePackageDependencies",
+            path_params={"ecosystem": "npm", "package": "express"},
+            query_params={"page": 1, "per_page": 10},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+        )
+        mock_print_output.assert_called_once()

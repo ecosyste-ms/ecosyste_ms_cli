@@ -13,13 +13,20 @@ class IssuesOperationHandler(OperationHandler):
     OPERATION_PARAMS = {
         "getHost": [("hostName", ["hostname"])],
         "getHostRepositories": [("hostName", ["hostname"])],
-        "getHostRepository": [("hostName", ["hostname"]), ("repositoryName", ["repositoryname"])],
-        "getHostRepositoryIssues": [("hostName", ["hostname"]), ("repositoryName", ["repositoryname"])],
+        "getHostRepository": [("hostName", ["hostname"]), ("repoName", ["reponame"])],
+        "getHostRepositoryIssues": [("hostName", ["hostname"]), ("repoName", ["reponame"])],
         "getHostRepositoryIssue": [
             ("hostName", ["hostname"]),
-            ("repositoryName", ["repositoryname"]),
+            ("repoName", ["reponame"]),
             ("issueNumber", ["issuenumber", "issue_number"]),
         ],
+        "getHostRepositoryLabels": [("hostName", ["hostname"]), ("repoName", ["reponame"])],
+        "getHostOwners": [("hostName", ["hostname"])],
+        "getHostOwner": [("hostName", ["hostname"]), ("ownerName", ["ownername"])],
+        "getHostOwnerMaintainers": [("hostName", ["hostname"]), ("ownerName", ["ownername"])],
+        "getHostAuthors": [("hostName", ["hostname"])],
+        "getHostAuthor": [("hostName", ["hostname"]), ("authorName", ["authorname"])],
+        "getJob": [("jobId", ["jobid"])],
     }
 
     def _extract_param(self, kwargs: dict, api_name: str, lowercase_variants: List[str]) -> Optional[str]:

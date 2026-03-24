@@ -242,3 +242,84 @@ class TestAdvisoriesCommands:
             base_url=mock.ANY,
         )
         mock_print_output.assert_called_once()
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_get_sources(self, mock_print_output, mock_api_factory):
+        """Test listing advisory sources."""
+        mock_api_factory.call.return_value = [
+            {"id": 1, "name": "GitHub", "kind": "github", "advisories_count": 5000},
+            {"id": 2, "name": "Erlef", "kind": "erlef", "advisories_count": 100},
+        ]
+
+        result = self.runner.invoke(
+            self.advisories_group,
+            ["get_sources"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "advisories",
+            "getSources",
+            path_params={},
+            query_params={},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+        )
+        mock_print_output.assert_called_once()
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_get_source(self, mock_print_output, mock_api_factory):
+        """Test getting a specific advisory source by kind."""
+        mock_api_factory.call.return_value = {
+            "id": 1,
+            "name": "GitHub",
+            "kind": "github",
+            "url": "https://github.com/advisories",
+            "advisories_count": 5000,
+        }
+
+        result = self.runner.invoke(
+            self.advisories_group,
+            ["get_source", "github"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "advisories",
+            "getSource",
+            path_params={"sourceKind": "github"},
+            query_params={},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+        )
+        mock_print_output.assert_called_once()
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_get_advisories_with_source_filter(self, mock_print_output, mock_api_factory):
+        """Test filtering advisories by source."""
+        mock_api_factory.call.return_value = [{"uuid": "abc", "title": "Test", "severity": "medium"}]
+
+        result = self.runner.invoke(
+            self.advisories_group,
+            ["get_advisories", "--source", "github"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "advisories",
+            "getAdvisories",
+            path_params={},
+            query_params={"source": "github"},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+        )
+        mock_print_output.assert_called_once()

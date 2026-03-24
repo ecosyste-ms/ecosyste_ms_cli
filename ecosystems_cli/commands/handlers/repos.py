@@ -35,6 +35,8 @@ class ReposOperationHandler(OperationHandler):
         "usageEcosystem": [("ecosystem", ["ecosystem"])],
         "usagePackage": [("ecosystem", ["ecosystem"]), ("package", ["package"])],
         "usagePackageDependencies": [("ecosystem", ["ecosystem"]), ("package", ["package"])],
+        "usagePackageDependentRepositories": [("ecosystem", ["ecosystem"]), ("package", ["package"])],
+        "getHostOwnerSponsorsLogins": [("hostName", ["hostname"])],
     }
 
     def _extract_param(self, kwargs: dict, api_name: str, lowercase_variants: List[str]) -> Optional[str]:
