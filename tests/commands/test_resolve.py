@@ -275,3 +275,30 @@ class TestResolveCommands:
 
         assert result.exit_code == 0
         mock_print_error.assert_called_once_with("Invalid registry", console=mock.ANY)
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_list_registries(self, mock_print_output, mock_api_factory):
+        """Test listing available registries."""
+        mock_api_factory.call.return_value = [
+            {"name": "npmjs.org", "url": "https://www.npmjs.com", "ecosystem": "npm", "packages_count": 2000000},
+            {"name": "pypi.org", "url": "https://pypi.org", "ecosystem": "pypi", "packages_count": 400000},
+        ]
+
+        result = self.runner.invoke(
+            self.resolve_group,
+            ["list_registries"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "resolve",
+            "listRegistries",
+            path_params={},
+            query_params={},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+        )
+        mock_print_output.assert_called_once()

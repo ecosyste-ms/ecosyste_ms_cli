@@ -22,6 +22,7 @@ class ResolveOperationHandler(OperationHandler):
         handlers = {
             "createJob": self._handle_create_job,
             "getJob": self._handle_get_job,
+            "listRegistries": self._handle_default,
         }
 
         handler = handlers.get(operation_id, self._handle_default)

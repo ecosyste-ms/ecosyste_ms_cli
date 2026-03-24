@@ -29,6 +29,7 @@ if "get_advisories" in advisories.commands:
 @click.option("--updated-after", type=str, default=None, help="filter by updated_at after given time")
 @click.option("--sort", type=str, default=None, help="field to order results by")
 @click.option("--order", type=str, default=None, help="direction to order results by")
+@click.option("--source", type=str, default=None, help="Source to filter by (e.g. github, erlef)")
 @common_options
 @click.pass_context
 def get_advisories(
@@ -48,6 +49,7 @@ def get_advisories(
     updated_after: Optional[str],
     sort: Optional[str],
     order: Optional[str],
+    source: Optional[str] = None,
 ):
     """List advisories with optional PURL support.
 
@@ -101,5 +103,7 @@ def get_advisories(
         kwargs["sort"] = sort
     if order is not None:
         kwargs["order"] = order
+    if source is not None:
+        kwargs["source"] = source
 
     execute_api_call(ctx, "advisories", operation_id="getAdvisories", call_args=(), call_kwargs=kwargs)

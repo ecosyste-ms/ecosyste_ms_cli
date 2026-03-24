@@ -29,6 +29,8 @@ class AdvisoriesOperationHandler(OperationHandler):
             "getAdvisories": self._handle_query_params,
             "getAdvisoriesPackages": self._handle_no_params,
             "lookupAdvisoriesByPurl": self._handle_query_params,
+            "getSources": self._handle_no_params,
+            "getSource": self._handle_get_source,
         }
 
         handler = handlers.get(operation_id, self._handle_default)
@@ -54,6 +56,16 @@ class AdvisoriesOperationHandler(OperationHandler):
         """Handle operations with no parameters."""
         _ = args, kwargs  # Unused but required for consistent interface
         return {}, {}
+
+    def _handle_get_source(self, args: tuple, kwargs: dict) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+        """Handle getSource operation parameters."""
+        path_params = {}
+
+        source_kind = args[0] if args else kwargs.pop("sourcekind", None)
+        if source_kind:
+            path_params["sourceKind"] = source_kind
+
+        return path_params, {}
 
     def _handle_default(self, args: tuple, kwargs: dict) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """Default handler for unknown operations."""
