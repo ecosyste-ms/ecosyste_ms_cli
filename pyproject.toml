@@ -51,7 +51,7 @@ exclude = ["tests*"]
 "ecosystems_cli.apis" = ["*.yaml"]
 
 [project]
-name = "ecosystems-cli"
+name = "ecosyste_ms_cli"
 version = "1.2.0"
 description = "CLI for ecosyste.ms API"
 authors = [
