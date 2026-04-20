@@ -7,6 +7,7 @@ import click
 from rich.console import Console
 from rich.panel import Panel
 
+from ecosystems_cli import __version__
 from ecosystems_cli.commands.advisories import advisories
 from ecosystems_cli.commands.archives import archives
 from ecosystems_cli.commands.commits import commits
@@ -137,6 +138,12 @@ for api_name, command in COMMAND_REGISTRY.items():
 # Register MCP server command
 main.add_command(mcp)
 # Dynamic op commands have been removed
+
+
+@main.command(name="version", help="Show the ecosystems CLI version and exit.")
+def version():
+    """Print the installed ecosystems CLI version."""
+    click.echo(__version__)
 
 
 def _parse_json_param(param: Optional[str]) -> Optional[Dict]:
