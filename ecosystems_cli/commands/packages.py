@@ -12,6 +12,35 @@ from ecosystems_cli.helpers.purl_parser import parse_purl_with_version, purl_typ
 packages = APICommandGenerator.create_api_group("packages")
 
 
+# Attach --purl as an optional parameter to the auto-generated get_dependencies
+# command. When provided, its type/name decompose into --ecosystem/--package-name,
+# letting users pass a single PURL instead of multiple flags.
+if "get_dependencies" in packages.commands:
+    _get_dependencies_cmd = packages.commands["get_dependencies"]
+    _get_dependencies_cmd.params.insert(
+        0,
+        click.Option(
+            ["--purl"],
+            type=str,
+            default=None,
+            help="Package URL (PURL). Example: pkg:npm/axios@1.7.9. Decomposes into --ecosystem and --package-name.",
+        ),
+    )
+    _original_get_dependencies_callback = _get_dependencies_cmd.callback
+
+    def _get_dependencies_with_purl(*args, **kwargs):
+        purl = kwargs.pop("purl", None)
+        if purl:
+            parsed_ecosystem, parsed_package_name, _ = parse_purl_with_version(purl)
+            if parsed_ecosystem and not kwargs.get("ecosystem"):
+                kwargs["ecosystem"] = purl_type_to_registry(parsed_ecosystem)
+            if parsed_package_name and not kwargs.get("package_name"):
+                kwargs["package_name"] = parsed_package_name
+        return _original_get_dependencies_callback(*args, **kwargs)
+
+    _get_dependencies_cmd.callback = _get_dependencies_with_purl
+
+
 # Remove auto-generated commands to replace with custom implementations
 if "get_registry_package" in packages.commands:
     del packages.commands["get_registry_package"]
