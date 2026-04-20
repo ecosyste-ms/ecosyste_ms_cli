@@ -327,3 +327,110 @@ class TestReposCommands:
             base_url=mock.ANY,
         )
         mock_print_output.assert_called_once()
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_usage_package_with_purl(self, mock_print_output, mock_api_factory):
+        """Test usage_package decomposes --purl into ecosystem and package."""
+        mock_api_factory.call.return_value = {}
+
+        result = self.runner.invoke(
+            self.repos_group,
+            ["usage_package", "--purl", "pkg:npm/lodash"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "repos",
+            "usagePackage",
+            path_params={"ecosystem": "npm", "package": "lodash"},
+            query_params={},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+        )
+        mock_print_output.assert_called_once()
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_usage_package_with_scoped_purl(self, mock_print_output, mock_api_factory):
+        """Test usage_package preserves scoped package names from PURL."""
+        mock_api_factory.call.return_value = {}
+
+        result = self.runner.invoke(
+            self.repos_group,
+            ["usage_package", "--purl", "pkg:npm/@babel/core@7.22.0"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "repos",
+            "usagePackage",
+            path_params={"ecosystem": "npm", "package": "@babel/core"},
+            query_params={},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+        )
+        mock_print_output.assert_called_once()
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_usage_package_dependencies_with_purl(self, mock_print_output, mock_api_factory):
+        """Test usage_package_dependencies accepts --purl plus query flags."""
+        mock_api_factory.call.return_value = []
+
+        result = self.runner.invoke(
+            self.repos_group,
+            ["usage_package_dependencies", "--purl", "pkg:pypi/django@4.2.0", "--page", "2"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "repos",
+            "usagePackageDependencies",
+            path_params={"ecosystem": "pypi", "package": "django"},
+            query_params={"page": 2},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+        )
+        mock_print_output.assert_called_once()
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_usage_package_dependent_repositories_with_purl(self, mock_print_output, mock_api_factory):
+        """Test usage_package_dependent_repositories accepts --purl."""
+        mock_api_factory.call.return_value = []
+
+        result = self.runner.invoke(
+            self.repos_group,
+            ["usage_package_dependent_repositories", "--purl", "pkg:npm/react", "--min-stars", "100"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "repos",
+            "usagePackageDependentRepositories",
+            path_params={"ecosystem": "npm", "package": "react"},
+            query_params={"min_stars": 100},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+        )
+        mock_print_output.assert_called_once()
+
+    def test_usage_package_missing_args(self):
+        """Test error when neither --purl nor positional args provided."""
+        result = self.runner.invoke(
+            self.repos_group,
+            ["usage_package"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code != 0
+        assert "Either --purl or both ECOSYSTEM and PACKAGE arguments are required" in result.output
