@@ -12,6 +12,86 @@ from ecosystems_cli.helpers.purl_parser import parse_purl_with_version, purl_typ
 packages = APICommandGenerator.create_api_group("packages")
 
 
+# Attach --purl as an optional parameter to the auto-generated get_dependencies
+# command. When provided, its type/name decompose into --ecosystem/--package-name,
+# letting users pass a single PURL instead of multiple flags.
+if "get_dependencies" in packages.commands:
+    _get_dependencies_cmd = packages.commands["get_dependencies"]
+    _get_dependencies_cmd.params.insert(
+        0,
+        click.Option(
+            ["--purl"],
+            type=str,
+            default=None,
+            help="Package URL (PURL). Example: pkg:npm/axios@1.7.9. Decomposes into --ecosystem and --package-name.",
+        ),
+    )
+    _original_get_dependencies_callback = _get_dependencies_cmd.callback
+
+    def _get_dependencies_with_purl(*args, **kwargs):
+        purl = kwargs.pop("purl", None)
+        if purl:
+            parsed_ecosystem, parsed_package_name, _ = parse_purl_with_version(purl)
+            if parsed_ecosystem and not kwargs.get("ecosystem"):
+                kwargs["ecosystem"] = purl_type_to_registry(parsed_ecosystem)
+            if parsed_package_name and not kwargs.get("package_name"):
+                kwargs["package_name"] = parsed_package_name
+        return _original_get_dependencies_callback(*args, **kwargs)
+
+    _get_dependencies_cmd.callback = _get_dependencies_with_purl
+
+
+def _add_purl_to_registry_package_command(command_name: str) -> None:
+    """Attach --purl to a command whose path args are registryName + packageName.
+
+    Makes the positional REGISTRY_NAME and PACKAGE_NAME args optional, injects
+    --purl, and wraps the callback so a PURL decomposes into those two args.
+    Purl type is mapped to a registry name (e.g. 'npm' -> 'npmjs.org').
+    Positional args still win over a PURL when both are passed.
+    """
+    if command_name not in packages.commands:
+        return
+
+    cmd = packages.commands[command_name]
+
+    for param in cmd.params:
+        if isinstance(param, click.Argument) and param.name in ("registryname", "packagename"):
+            param.required = False
+
+    cmd.params.insert(
+        0,
+        click.Option(
+            ["--purl"],
+            type=str,
+            default=None,
+            help="Package URL (PURL). Example: pkg:npm/lodash. Decomposes into REGISTRY_NAME and PACKAGE_NAME.",
+        ),
+    )
+    original_callback = cmd.callback
+
+    def wrapped_callback(*args, **kwargs):
+        purl = kwargs.pop("purl", None)
+        if purl:
+            parsed_ecosystem, parsed_package_name, _ = parse_purl_with_version(purl)
+            if parsed_ecosystem and not kwargs.get("registryname"):
+                kwargs["registryname"] = purl_type_to_registry(parsed_ecosystem)
+            if parsed_package_name and not kwargs.get("packagename"):
+                kwargs["packagename"] = parsed_package_name
+        if not kwargs.get("registryname") or not kwargs.get("packagename"):
+            raise click.UsageError("Either --purl or both REGISTRY_NAME and PACKAGE_NAME arguments are required")
+        return original_callback(*args, **kwargs)
+
+    cmd.callback = wrapped_callback
+
+
+for _op in (
+    "get_registry_package_dependent_packages",
+    "get_registry_package_versions",
+    "get_registry_package_version_numbers",
+):
+    _add_purl_to_registry_package_command(_op)
+
+
 # Remove auto-generated commands to replace with custom implementations
 if "get_registry_package" in packages.commands:
     del packages.commands["get_registry_package"]

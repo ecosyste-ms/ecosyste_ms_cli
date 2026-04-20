@@ -705,6 +705,241 @@ class TestPackagesCommands:
 
     @mock.patch("ecosystems_cli.commands.execution.api_factory")
     @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_get_dependencies_with_flags(self, mock_print_output, mock_api_factory):
+        """Test get_dependencies with explicit --ecosystem and --package-name flags."""
+        mock_api_factory.call.return_value = []
+
+        result = self.runner.invoke(
+            self.packages_group,
+            ["get_dependencies", "--package-name", "axios", "--ecosystem", "npmjs.org"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "packages",
+            "getDependencies",
+            path_params={},
+            query_params={"package_name": "axios", "ecosystem": "npmjs.org"},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+        )
+        mock_print_output.assert_called_once()
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_get_dependencies_with_purl(self, mock_print_output, mock_api_factory):
+        """Test get_dependencies decomposes --purl into ecosystem and package_name."""
+        mock_api_factory.call.return_value = []
+
+        result = self.runner.invoke(
+            self.packages_group,
+            ["get_dependencies", "--purl", "pkg:npm/axios@1.7.9"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "packages",
+            "getDependencies",
+            path_params={},
+            query_params={"ecosystem": "npmjs.org", "package_name": "axios"},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+        )
+        mock_print_output.assert_called_once()
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_get_dependencies_with_scoped_purl(self, mock_print_output, mock_api_factory):
+        """Test get_dependencies preserves scoped package names from PURL."""
+        mock_api_factory.call.return_value = []
+
+        result = self.runner.invoke(
+            self.packages_group,
+            ["get_dependencies", "--purl", "pkg:npm/@babel/core@7.22.0"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "packages",
+            "getDependencies",
+            path_params={},
+            query_params={"ecosystem": "npmjs.org", "package_name": "@babel/core"},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+        )
+        mock_print_output.assert_called_once()
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_get_dependencies_explicit_flags_override_purl(self, mock_print_output, mock_api_factory):
+        """Test explicit --ecosystem/--package-name win over PURL-derived values."""
+        mock_api_factory.call.return_value = []
+
+        result = self.runner.invoke(
+            self.packages_group,
+            [
+                "get_dependencies",
+                "--purl",
+                "pkg:npm/axios@1.7.9",
+                "--ecosystem",
+                "npm",
+                "--package-name",
+                "lodash",
+            ],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "packages",
+            "getDependencies",
+            path_params={},
+            query_params={"ecosystem": "npm", "package_name": "lodash"},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+        )
+        mock_print_output.assert_called_once()
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_get_dependencies_invalid_purl_ignored(self, mock_print_output, mock_api_factory):
+        """Test that an unparseable --purl is ignored instead of raising."""
+        mock_api_factory.call.return_value = []
+
+        result = self.runner.invoke(
+            self.packages_group,
+            ["get_dependencies", "--purl", "not-a-purl"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "packages",
+            "getDependencies",
+            path_params={},
+            query_params={},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+        )
+        mock_print_output.assert_called_once()
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_get_registry_package_dependent_packages_with_purl(self, mock_print_output, mock_api_factory):
+        """Test get_registry_package_dependent_packages decomposes --purl into path params."""
+        mock_api_factory.call.return_value = []
+
+        result = self.runner.invoke(
+            self.packages_group,
+            ["get_registry_package_dependent_packages", "--purl", "pkg:npm/lodash", "--page", "2"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "packages",
+            "getRegistryPackageDependentPackages",
+            path_params={"registryName": "npmjs.org", "packageName": "lodash"},
+            query_params={"page": 2},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+        )
+        mock_print_output.assert_called_once()
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_get_registry_package_versions_with_purl(self, mock_print_output, mock_api_factory):
+        """Test get_registry_package_versions decomposes --purl into path params."""
+        mock_api_factory.call.return_value = []
+
+        result = self.runner.invoke(
+            self.packages_group,
+            ["get_registry_package_versions", "--purl", "pkg:pypi/django@4.2.0"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "packages",
+            "getRegistryPackageVersions",
+            path_params={"registryName": "pypi.org", "packageName": "django"},
+            query_params={},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+        )
+        mock_print_output.assert_called_once()
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_get_registry_package_version_numbers_with_scoped_purl(self, mock_print_output, mock_api_factory):
+        """Test get_registry_package_version_numbers preserves scoped package names from PURL."""
+        mock_api_factory.call.return_value = []
+
+        result = self.runner.invoke(
+            self.packages_group,
+            ["get_registry_package_version_numbers", "--purl", "pkg:npm/@babel/core"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "packages",
+            "getRegistryPackageVersionNumbers",
+            path_params={"registryName": "npmjs.org", "packageName": "@babel/core"},
+            query_params={},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+        )
+        mock_print_output.assert_called_once()
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_get_registry_package_version_numbers_with_positional(self, mock_print_output, mock_api_factory):
+        """Test get_registry_package_version_numbers still accepts positional args."""
+        mock_api_factory.call.return_value = []
+
+        result = self.runner.invoke(
+            self.packages_group,
+            ["get_registry_package_version_numbers", "lodash", "npmjs.org"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "packages",
+            "getRegistryPackageVersionNumbers",
+            path_params={"registryName": "npmjs.org", "packageName": "lodash"},
+            query_params={},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+        )
+        mock_print_output.assert_called_once()
+
+    def test_get_registry_package_versions_missing_args(self):
+        """Test error when neither --purl nor positional args provided."""
+        result = self.runner.invoke(
+            self.packages_group,
+            ["get_registry_package_versions"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code != 0
+        assert "Either --purl or both REGISTRY_NAME and PACKAGE_NAME arguments are required" in result.output
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
     def test_get_registry_package_names_with_prefix_postfix(self, mock_print_output, mock_api_factory):
         """Test getting registry package names with prefix and postfix filters."""
         mock_api_factory.call.return_value = ["react-dom", "react-router-dom"]
