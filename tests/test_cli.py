@@ -6,6 +6,7 @@ from unittest import mock
 import pytest
 from click.testing import CliRunner
 
+from ecosystems_cli import __version__
 from ecosystems_cli.cli import main
 
 
@@ -22,6 +23,16 @@ def mock_api_client():
         # Mock the call method to return success
         mock_factory.call.return_value = {"result": "success"}
         yield mock_factory
+
+
+class TestVersionCommand:
+    """Test the version subcommand."""
+
+    def test_version_prints_package_version(self, runner):
+        """Version output must match __version__ so semantic-release stays the source of truth."""
+        result = runner.invoke(main, ["version"])
+        assert result.exit_code == 0
+        assert result.output.strip() == __version__
 
 
 class TestAdvisoriesCommands:
