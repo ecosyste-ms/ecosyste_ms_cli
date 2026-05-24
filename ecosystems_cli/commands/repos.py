@@ -39,6 +39,8 @@ def _add_purl_to_ecosystem_package_command(command_name: str) -> None:
         purl = kwargs.pop("purl", None)
         if purl:
             parsed_ecosystem, parsed_package = parse_purl(purl)
+            if not parsed_ecosystem and not parsed_package:
+                raise click.UsageError(f"Invalid PURL: {purl!r}. Expected format: pkg:type/name (e.g. pkg:npm/lodash).")
             if parsed_ecosystem and not kwargs.get("ecosystem"):
                 kwargs["ecosystem"] = parsed_ecosystem
             if parsed_package and not kwargs.get("package"):

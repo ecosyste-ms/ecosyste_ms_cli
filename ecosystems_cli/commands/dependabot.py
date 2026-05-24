@@ -28,9 +28,11 @@ if "get_advisories" in dependabot.commands:
         purl = kwargs.pop("purl", None)
         if purl:
             parsed_ecosystem, parsed_package_name = parse_purl(purl)
-            if parsed_ecosystem:
+            if not parsed_ecosystem and not parsed_package_name:
+                raise click.UsageError(f"Invalid PURL: {purl!r}. Expected format: pkg:type/name (e.g. pkg:npm/axios).")
+            if parsed_ecosystem and not kwargs.get("ecosystem"):
                 kwargs["ecosystem"] = parsed_ecosystem
-            if parsed_package_name:
+            if parsed_package_name and not kwargs.get("package_name"):
                 kwargs["package_name"] = parsed_package_name
         return _original_get_advisories_callback(*args, **kwargs)
 

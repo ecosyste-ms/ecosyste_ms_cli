@@ -93,8 +93,8 @@ class TestDependabotCommands:
 
     @mock.patch("ecosystems_cli.commands.execution.api_factory")
     @mock.patch("ecosystems_cli.commands.execution.print_output")
-    def test_get_advisories_purl_overrides_flags(self, mock_print_output, mock_api_factory):
-        """Test that PURL overrides explicit --ecosystem and --package-name flags."""
+    def test_get_advisories_explicit_flags_override_purl(self, mock_print_output, mock_api_factory):
+        """Test explicit --ecosystem/--package-name win over PURL-derived values."""
         mock_api_factory.call.return_value = []
 
         result = self.runner.invoke(
@@ -116,33 +116,20 @@ class TestDependabotCommands:
             "dependabot",
             "getAdvisories",
             path_params={},
-            query_params={"ecosystem": "npm", "package_name": "fsa"},
+            query_params={"ecosystem": "pypi", "package_name": "django"},
             timeout=mock.ANY,
             mailto=mock.ANY,
             base_url=mock.ANY,
         )
         mock_print_output.assert_called_once()
 
-    @mock.patch("ecosystems_cli.commands.execution.api_factory")
-    @mock.patch("ecosystems_cli.commands.execution.print_output")
-    def test_get_advisories_invalid_purl_ignored(self, mock_print_output, mock_api_factory):
-        """Test that an unparseable --purl is ignored instead of raising."""
-        mock_api_factory.call.return_value = []
-
+    def test_get_advisories_invalid_purl_raises(self):
+        """Test that an unparseable --purl raises a UsageError."""
         result = self.runner.invoke(
             self.dependabot_group,
             ["get_advisories", "--purl", "not-a-purl"],
             obj={"timeout": 20, "format": "json"},
         )
 
-        assert result.exit_code == 0
-        mock_api_factory.call.assert_called_once_with(
-            "dependabot",
-            "getAdvisories",
-            path_params={},
-            query_params={},
-            timeout=mock.ANY,
-            mailto=mock.ANY,
-            base_url=mock.ANY,
-        )
-        mock_print_output.assert_called_once()
+        assert result.exit_code != 0
+        assert "Invalid PURL" in result.output

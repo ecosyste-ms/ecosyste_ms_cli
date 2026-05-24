@@ -807,29 +807,16 @@ class TestPackagesCommands:
         )
         mock_print_output.assert_called_once()
 
-    @mock.patch("ecosystems_cli.commands.execution.api_factory")
-    @mock.patch("ecosystems_cli.commands.execution.print_output")
-    def test_get_dependencies_invalid_purl_ignored(self, mock_print_output, mock_api_factory):
-        """Test that an unparseable --purl is ignored instead of raising."""
-        mock_api_factory.call.return_value = []
-
+    def test_get_dependencies_invalid_purl_raises(self):
+        """Test that an unparseable --purl raises a UsageError."""
         result = self.runner.invoke(
             self.packages_group,
             ["get_dependencies", "--purl", "not-a-purl"],
             obj={"timeout": 20, "format": "json"},
         )
 
-        assert result.exit_code == 0
-        mock_api_factory.call.assert_called_once_with(
-            "packages",
-            "getDependencies",
-            path_params={},
-            query_params={},
-            timeout=mock.ANY,
-            mailto=mock.ANY,
-            base_url=mock.ANY,
-        )
-        mock_print_output.assert_called_once()
+        assert result.exit_code != 0
+        assert "Invalid PURL" in result.output
 
     @mock.patch("ecosystems_cli.commands.execution.api_factory")
     @mock.patch("ecosystems_cli.commands.execution.print_output")

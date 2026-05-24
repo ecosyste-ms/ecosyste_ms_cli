@@ -32,6 +32,8 @@ if "get_dependencies" in packages.commands:
         purl = kwargs.pop("purl", None)
         if purl:
             parsed_ecosystem, parsed_package_name, _ = parse_purl_with_version(purl)
+            if not parsed_ecosystem and not parsed_package_name:
+                raise click.UsageError(f"Invalid PURL: {purl!r}. Expected format: pkg:type/name (e.g. pkg:npm/axios).")
             if parsed_ecosystem and not kwargs.get("ecosystem"):
                 kwargs["ecosystem"] = purl_type_to_registry(parsed_ecosystem)
             if parsed_package_name and not kwargs.get("package_name"):
@@ -73,6 +75,8 @@ def _add_purl_to_registry_package_command(command_name: str) -> None:
         purl = kwargs.pop("purl", None)
         if purl:
             parsed_ecosystem, parsed_package_name, _ = parse_purl_with_version(purl)
+            if not parsed_ecosystem and not parsed_package_name:
+                raise click.UsageError(f"Invalid PURL: {purl!r}. Expected format: pkg:type/name (e.g. pkg:npm/lodash).")
             if parsed_ecosystem and not kwargs.get("registryname"):
                 kwargs["registryname"] = purl_type_to_registry(parsed_ecosystem)
             if parsed_package_name and not kwargs.get("packagename"):
