@@ -73,12 +73,14 @@ def get_advisories(
     """
     update_context(ctx, timeout, format, domain, mailto)
 
-    # If PURL is provided, parse it and override ecosystem/package_name
+    # If PURL is provided, decompose it; explicit flags win over PURL-derived values.
     if purl:
         parsed_ecosystem, parsed_package_name = parse_purl(purl)
-        if parsed_ecosystem:
+        if not parsed_ecosystem and not parsed_package_name:
+            raise click.UsageError(f"Invalid PURL: {purl!r}. Expected format: pkg:type/name (e.g. pkg:npm/axios).")
+        if parsed_ecosystem and not ecosystem:
             ecosystem = parsed_ecosystem
-        if parsed_package_name:
+        if parsed_package_name and not package_name:
             package_name = parsed_package_name
 
     # Build kwargs for the API call

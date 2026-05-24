@@ -434,3 +434,38 @@ class TestReposCommands:
 
         assert result.exit_code != 0
         assert "Either --purl or both ECOSYSTEM and PACKAGE arguments are required" in result.output
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_usage_package_positional_overrides_purl(self, mock_print_output, mock_api_factory):
+        """Test that positional args win over PURL-derived values."""
+        mock_api_factory.call.return_value = {}
+
+        result = self.runner.invoke(
+            self.repos_group,
+            ["usage_package", "--purl", "pkg:npm/lodash", "django", "pypi"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "repos",
+            "usagePackage",
+            path_params={"ecosystem": "pypi", "package": "django"},
+            query_params={},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+        )
+        mock_print_output.assert_called_once()
+
+    def test_usage_package_invalid_purl_raises(self):
+        """Test that an unparseable --purl raises a UsageError."""
+        result = self.runner.invoke(
+            self.repos_group,
+            ["usage_package", "--purl", "not-a-purl"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code != 0
+        assert "Invalid PURL" in result.output

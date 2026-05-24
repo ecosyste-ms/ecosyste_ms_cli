@@ -139,13 +139,14 @@ def get_registry_package(
     """
     update_context(ctx, timeout, format, domain, mailto)
 
-    # If PURL is provided, parse it and override registry_name/package_name
+    # If PURL is provided, decompose it; explicit positional args win over PURL-derived values.
     if purl:
         parsed_ecosystem, parsed_package_name, _ = parse_purl_with_version(purl)
-        if parsed_ecosystem:
-            # Convert purl type to registry name (e.g., 'npm' -> 'npmjs.org')
+        if not parsed_ecosystem and not parsed_package_name:
+            raise click.UsageError(f"Invalid PURL: {purl!r}. Expected format: pkg:type/name (e.g. pkg:npm/lodash).")
+        if parsed_ecosystem and not registry_name:
             registry_name = purl_type_to_registry(parsed_ecosystem)
-        if parsed_package_name:
+        if parsed_package_name and not package_name:
             package_name = parsed_package_name
 
     # Validate that we have the required parameters
@@ -204,15 +205,18 @@ def get_registry_package_version(
     """
     update_context(ctx, timeout, format, domain, mailto)
 
-    # If PURL is provided, parse it and override registry_name/package_name/version_number
+    # If PURL is provided, decompose it; explicit positional args win over PURL-derived values.
     if purl:
         parsed_ecosystem, parsed_package_name, parsed_version = parse_purl_with_version(purl)
-        if parsed_ecosystem:
-            # Convert purl type to registry name (e.g., 'npm' -> 'npmjs.org')
+        if not parsed_ecosystem and not parsed_package_name:
+            raise click.UsageError(
+                f"Invalid PURL: {purl!r}. Expected format: pkg:type/name@version (e.g. pkg:npm/lodash@4.17.21)."
+            )
+        if parsed_ecosystem and not registry_name:
             registry_name = purl_type_to_registry(parsed_ecosystem)
-        if parsed_package_name:
+        if parsed_package_name and not package_name:
             package_name = parsed_package_name
-        if parsed_version:
+        if parsed_version and not version_number:
             version_number = parsed_version
 
     # Validate that we have the required parameters

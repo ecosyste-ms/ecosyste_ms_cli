@@ -217,8 +217,8 @@ class TestAdvisoriesCommands:
 
     @mock.patch("ecosystems_cli.commands.execution.api_factory")
     @mock.patch("ecosystems_cli.commands.execution.print_output")
-    def test_get_advisories_purl_overrides_ecosystem_package(self, mock_print_output, mock_api_factory):
-        """Test that PURL overrides ecosystem and package-name when both are provided."""
+    def test_get_advisories_explicit_flags_override_purl(self, mock_print_output, mock_api_factory):
+        """Test that explicit --ecosystem/--package-name win over PURL-derived values."""
         mock_api_factory.call.return_value = [{"uuid": "789", "title": "Override Test", "severity": "low"}]
 
         result = self.runner.invoke(
@@ -228,20 +228,30 @@ class TestAdvisoriesCommands:
         )
 
         assert result.exit_code == 0
-        # PURL should override the explicit ecosystem and package-name
         mock_api_factory.call.assert_called_once_with(
             "advisories",
             "getAdvisories",
             path_params={},
             query_params={
-                "ecosystem": "npm",
-                "package_name": "fsa",
+                "ecosystem": "pypi",
+                "package_name": "django",
             },
             timeout=mock.ANY,
             mailto=mock.ANY,
             base_url=mock.ANY,
         )
         mock_print_output.assert_called_once()
+
+    def test_get_advisories_invalid_purl_raises(self):
+        """Test that an unparseable --purl raises a UsageError."""
+        result = self.runner.invoke(
+            self.advisories_group,
+            ["get_advisories", "--purl", "not-a-purl"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code != 0
+        assert "Invalid PURL" in result.output
 
     @mock.patch("ecosystems_cli.commands.execution.api_factory")
     @mock.patch("ecosystems_cli.commands.execution.print_output")

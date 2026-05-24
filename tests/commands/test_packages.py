@@ -284,6 +284,41 @@ class TestPackagesCommands:
 
     @mock.patch("ecosystems_cli.commands.execution.api_factory")
     @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_get_registry_package_positional_overrides_purl(self, mock_print_output, mock_api_factory):
+        """Test that explicit positional args win over PURL-derived values."""
+        mock_api_factory.call.return_value = {"ecosystem": "pypi", "name": "django"}
+
+        result = self.runner.invoke(
+            self.packages_group,
+            ["get_registry_package", "--purl", "pkg:npm/lodash", "pypi.org", "django"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "packages",
+            "getRegistryPackage",
+            path_params={"registryName": "pypi.org", "packageName": "django"},
+            query_params={},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+        )
+        mock_print_output.assert_called_once()
+
+    def test_get_registry_package_invalid_purl_raises(self):
+        """Test that an unparseable --purl raises a UsageError."""
+        result = self.runner.invoke(
+            self.packages_group,
+            ["get_registry_package", "--purl", "not-a-purl"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code != 0
+        assert "Invalid PURL" in result.output
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
     def test_get_registry_package_version_with_args(self, mock_print_output, mock_api_factory):
         """Test getting a package version by registry, name, and version (positional args)."""
         mock_api_factory.call.return_value = {
@@ -402,6 +437,41 @@ class TestPackagesCommands:
 
         assert result.exit_code != 0
         assert "Either --purl (with version) or all three arguments" in result.output
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_get_registry_package_version_positional_overrides_purl(self, mock_print_output, mock_api_factory):
+        """Test explicit positional args (including version) win over PURL-derived values."""
+        mock_api_factory.call.return_value = {"ecosystem": "pypi", "name": "django", "version": "5.0.0"}
+
+        result = self.runner.invoke(
+            self.packages_group,
+            ["get_registry_package_version", "--purl", "pkg:npm/lodash@4.17.21", "pypi.org", "django", "5.0.0"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "packages",
+            "getRegistryPackageVersion",
+            path_params={"registryName": "pypi.org", "packageName": "django", "versionNumber": "5.0.0"},
+            query_params={},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+        )
+        mock_print_output.assert_called_once()
+
+    def test_get_registry_package_version_invalid_purl_raises(self):
+        """Test that an unparseable --purl raises a UsageError."""
+        result = self.runner.invoke(
+            self.packages_group,
+            ["get_registry_package_version", "--purl", "not-a-purl"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code != 0
+        assert "Invalid PURL" in result.output
 
     def test_get_registry_package_version_purl_without_version(self):
         """Test error when PURL is provided without version."""
@@ -924,6 +994,41 @@ class TestPackagesCommands:
 
         assert result.exit_code != 0
         assert "Either --purl or both REGISTRY_NAME and PACKAGE_NAME arguments are required" in result.output
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_get_registry_package_versions_positional_overrides_purl(self, mock_print_output, mock_api_factory):
+        """Test that positional args win over PURL-derived values on auto-generated wrapper."""
+        mock_api_factory.call.return_value = []
+
+        result = self.runner.invoke(
+            self.packages_group,
+            ["get_registry_package_versions", "--purl", "pkg:npm/lodash", "django", "pypi.org"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "packages",
+            "getRegistryPackageVersions",
+            path_params={"registryName": "pypi.org", "packageName": "django"},
+            query_params={},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+        )
+        mock_print_output.assert_called_once()
+
+    def test_get_registry_package_versions_invalid_purl_raises(self):
+        """Test that an unparseable --purl raises a UsageError on auto-generated wrapper."""
+        result = self.runner.invoke(
+            self.packages_group,
+            ["get_registry_package_versions", "--purl", "not-a-purl"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code != 0
+        assert "Invalid PURL" in result.output
 
     @mock.patch("ecosystems_cli.commands.execution.api_factory")
     @mock.patch("ecosystems_cli.commands.execution.print_output")
