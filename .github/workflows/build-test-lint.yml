@@ -7,6 +7,7 @@ on:
       - 'feature/*'
       - 'fix/*'
       - 'refactor/*'
+      - 'chore/*'
 
 # Prevent concurrent runs on the same branch
 concurrency:
