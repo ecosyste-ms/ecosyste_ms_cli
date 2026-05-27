@@ -35,7 +35,9 @@ if "get_dependencies" in packages.commands:
             if not parsed_ecosystem and not parsed_package_name:
                 raise click.UsageError(f"Invalid PURL: {purl!r}. Expected format: pkg:type/name (e.g. pkg:npm/axios).")
             if parsed_ecosystem and not kwargs.get("ecosystem"):
-                kwargs["ecosystem"] = purl_type_to_registry(parsed_ecosystem)
+                # getDependencies filters by ecosystem name (e.g. "npm"), not the
+                # registry name ("npmjs.org"), so pass the raw PURL type through.
+                kwargs["ecosystem"] = parsed_ecosystem
             if parsed_package_name and not kwargs.get("package_name"):
                 kwargs["package_name"] = parsed_package_name
         return _original_get_dependencies_callback(*args, **kwargs)
