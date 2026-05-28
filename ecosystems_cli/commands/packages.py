@@ -4,7 +4,7 @@ from typing import Optional
 
 import click
 
-from ecosystems_cli.commands.decorators import common_options
+from ecosystems_cli.commands.decorators import common_options, override_auto_command
 from ecosystems_cli.commands.execution import execute_api_call, update_context
 from ecosystems_cli.commands.generator import APICommandGenerator
 from ecosystems_cli.helpers.build_kwargs import build_kwargs
@@ -88,14 +88,7 @@ for _op in (
     _add_purl_to_registry_package_command(_op)
 
 
-# Remove auto-generated commands to replace with custom implementations
-if "get_registry_package" in packages.commands:
-    del packages.commands["get_registry_package"]
-if "get_registry_package_version" in packages.commands:
-    del packages.commands["get_registry_package_version"]
-
-
-@packages.command(name="get_registry_package", help="get a package by name")
+@override_auto_command(packages, "get_registry_package", help="get a package by name")
 @click.option("--purl", type=str, default=None, help="Package URL (PURL). Example: pkg:npm/lodash")
 @click.argument("registry_name", required=False, default=None)
 @click.argument("package_name", required=False, default=None)
@@ -150,7 +143,7 @@ def get_registry_package(
     execute_api_call(ctx, "packages", operation_id="getRegistryPackage", call_args=(), call_kwargs=kwargs)
 
 
-@packages.command(name="get_registry_package_version", help="get a version of a package")
+@override_auto_command(packages, "get_registry_package_version", help="get a version of a package")
 @click.option("--purl", type=str, default=None, help="Package URL (PURL). Example: pkg:npm/lodash@4.17.21")
 @click.argument("registry_name", required=False, default=None)
 @click.argument("package_name", required=False, default=None)

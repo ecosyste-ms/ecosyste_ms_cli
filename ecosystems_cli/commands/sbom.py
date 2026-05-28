@@ -4,7 +4,7 @@ from typing import Optional
 
 import click
 
-from ecosystems_cli.commands.decorators import common_options
+from ecosystems_cli.commands.decorators import common_options, override_auto_command
 from ecosystems_cli.commands.execution import update_context
 from ecosystems_cli.commands.generator import APICommandGenerator
 from ecosystems_cli.helpers.job_polling import submit_and_poll
@@ -12,12 +12,7 @@ from ecosystems_cli.helpers.job_polling import submit_and_poll
 sbom = APICommandGenerator.create_api_group("sbom")
 
 
-# Remove auto-generated create_job command to replace with custom implementation
-if "create_job" in sbom.commands:
-    del sbom.commands["create_job"]
-
-
-@sbom.command(name="create_job", help="Submit a dependency parsing job")
+@override_auto_command(sbom, "create_job", help="Submit a dependency parsing job")
 @click.argument("url", required=True)
 @click.option(
     "--polling-interval",

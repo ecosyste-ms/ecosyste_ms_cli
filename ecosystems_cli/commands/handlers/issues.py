@@ -1,6 +1,6 @@
 """Handler for issues API operations."""
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Tuple
 
 from .base import OperationHandler
 
@@ -28,28 +28,6 @@ class IssuesOperationHandler(OperationHandler):
         "getHostAuthor": [("hostName", ["hostname"]), ("authorName", ["authorname"])],
         "getJob": [("jobId", ["jobid"])],
     }
-
-    def _extract_param(self, kwargs: dict, api_name: str, lowercase_variants: List[str]) -> Optional[str]:
-        """Extract parameter from kwargs, trying API name first, then lowercase variants.
-
-        Args:
-            kwargs: Keyword arguments dict
-            api_name: The API parameter name (exact case)
-            lowercase_variants: List of lowercase parameter name variants to try
-
-        Returns:
-            Parameter value if found, None otherwise
-        """
-        # Try exact API name first
-        if api_name in kwargs:
-            return kwargs.pop(api_name)
-
-        # Try lowercase variants
-        for variant in lowercase_variants:
-            if variant in kwargs:
-                return kwargs.pop(variant)
-
-        return None
 
     def build_params(self, operation_id: str, args: tuple, kwargs: dict) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """Build parameters for issues API operations.

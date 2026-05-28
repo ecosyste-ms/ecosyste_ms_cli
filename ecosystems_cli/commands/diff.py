@@ -4,7 +4,7 @@ from typing import Optional
 
 import click
 
-from ecosystems_cli.commands.decorators import common_options
+from ecosystems_cli.commands.decorators import common_options, override_auto_command
 from ecosystems_cli.commands.execution import update_context
 from ecosystems_cli.commands.generator import APICommandGenerator
 from ecosystems_cli.helpers.job_polling import submit_and_poll
@@ -12,12 +12,7 @@ from ecosystems_cli.helpers.job_polling import submit_and_poll
 diff = APICommandGenerator.create_api_group("diff")
 
 
-# Remove auto-generated create_job command to replace with custom implementation
-if "create_job" in diff.commands:
-    del diff.commands["create_job"]
-
-
-@diff.command(name="create_job", help="Submit a diff job with two URLs to compare")
+@override_auto_command(diff, "create_job", help="Submit a diff job with two URLs to compare")
 @click.argument("url_1", required=True)
 @click.argument("url_2", required=True)
 @click.option(

@@ -6,7 +6,7 @@ from typing import Optional
 import click
 from rich.console import Console
 
-from ecosystems_cli.commands.decorators import common_options
+from ecosystems_cli.commands.decorators import common_options, override_auto_command
 from ecosystems_cli.commands.execution import update_context
 from ecosystems_cli.commands.generator import APICommandGenerator
 from ecosystems_cli.constants import DEFAULT_OUTPUT_FORMAT, DEFAULT_TIMEOUT
@@ -22,12 +22,7 @@ console = Console()
 resolve = APICommandGenerator.create_api_group("resolve")
 
 
-# Remove auto-generated create_job command to replace with custom implementation
-if "create_job" in resolve.commands:
-    del resolve.commands["create_job"]
-
-
-@resolve.command(name="create_job", help="Submit a resolve job")
+@override_auto_command(resolve, "create_job", help="Submit a resolve job")
 @click.argument("package_name", required=True)
 @click.argument("registry", required=True)
 @click.option("--version", default=None, help="Resolve only with version within this range")

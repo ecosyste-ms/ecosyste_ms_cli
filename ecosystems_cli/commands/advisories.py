@@ -4,7 +4,7 @@ from typing import Optional
 
 import click
 
-from ecosystems_cli.commands.decorators import common_options
+from ecosystems_cli.commands.decorators import common_options, override_auto_command
 from ecosystems_cli.commands.execution import execute_api_call, update_context
 from ecosystems_cli.commands.generator import APICommandGenerator
 from ecosystems_cli.helpers.build_kwargs import build_kwargs
@@ -13,12 +13,7 @@ from ecosystems_cli.helpers.purl_parser import apply_purl
 advisories = APICommandGenerator.create_api_group("advisories")
 
 
-# Remove auto-generated get_advisories command to replace with custom implementation
-if "get_advisories" in advisories.commands:
-    del advisories.commands["get_advisories"]
-
-
-@advisories.command(name="get_advisories", help="list advisories")
+@override_auto_command(advisories, "get_advisories", help="list advisories")
 @click.option("--purl", type=str, default=None, help="Package URL (PURL). Example: pkg:npm/fsa")
 @click.option("--ecosystem", type=str, default=None, help="Ecosystem to filter by")
 @click.option("--package-name", type=str, default=None, help="Package to filter by")

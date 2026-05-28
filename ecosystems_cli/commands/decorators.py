@@ -38,6 +38,23 @@ def common_options(f):
     return f
 
 
+def override_auto_command(group: click.Group, name: str, **command_kwargs):
+    """Register a custom command in place of an auto-generated one.
+
+    Drops any command already registered on ``group`` under ``name`` (the
+    auto-generated version), then registers the decorated function via
+    ``group.command(name=name, **command_kwargs)``. Use this as the outermost
+    decorator instead of a bare ``del group.commands[name]`` followed by
+    ``@group.command(name=name, ...)``.
+    """
+
+    def decorator(func):
+        group.commands.pop(name, None)
+        return group.command(name=name, **command_kwargs)(func)
+
+    return decorator
+
+
 def api_command(api_name: str, operation_id: Optional[str] = None, method_name: Optional[str] = None):
     """Decorator that wraps commands with API execution logic.
 
