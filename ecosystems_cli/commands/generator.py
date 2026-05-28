@@ -5,8 +5,7 @@ from typing import List
 
 import click
 
-from ecosystems_cli.commands.decorators import common_options, resolve_context_value
-from ecosystems_cli.constants import DEFAULT_OUTPUT_FORMAT, DEFAULT_TIMEOUT
+from ecosystems_cli.commands.decorators import common_options
 from ecosystems_cli.helpers.click_params import build_body_decorators, build_click_decorators
 from ecosystems_cli.helpers.load_api_spec import load_api_spec
 
@@ -40,17 +39,11 @@ class APICommandGenerator:
         @click.pass_context
         def api_group(ctx, timeout, format, domain, mailto):
             f"""Commands for the {api_name} API."""
-            ctx.ensure_object(dict)
+            from ecosystems_cli.commands.execution import update_context
 
-            timeout = resolve_context_value(ctx, "timeout", timeout, DEFAULT_TIMEOUT)
-            format = resolve_context_value(ctx, "format", format, DEFAULT_OUTPUT_FORMAT)
-            domain = resolve_context_value(ctx, "domain", domain, None)
-            mailto = resolve_context_value(ctx, "mailto", mailto, None)
-
-            ctx.obj["timeout"] = timeout
-            ctx.obj["format"] = format
-            ctx.obj["domain"] = domain
-            ctx.obj["mailto"] = mailto
+            # Same merge rule as leaf commands: a value set at this level wins;
+            # otherwise the value inherited from the parent context is kept.
+            update_context(ctx, timeout, format, domain, mailto)
 
         api_group.name = api_name
         return api_group

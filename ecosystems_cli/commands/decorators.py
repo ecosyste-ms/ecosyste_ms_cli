@@ -86,33 +86,3 @@ def api_command(api_name: str, operation_id: Optional[str] = None, method_name: 
         return wrapper
 
     return decorator
-
-
-def resolve_context_value(ctx, key, current_value, default_value):
-    """Helper to resolve context values with inheritance.
-
-    Args:
-        ctx: Click context
-        key: Context key to resolve
-        current_value: Current value from command options
-        default_value: Default value for comparison
-
-    Returns:
-        Resolved value considering context inheritance
-    """
-    # If current value is not default, use it
-    if current_value != default_value:
-        return current_value
-
-    # Check current context for existing value
-    if ctx.obj and key in ctx.obj:
-        return ctx.obj[key]
-
-    # Check parent context
-    if ctx.parent and ctx.parent.obj:
-        parent_value = ctx.parent.obj.get(key, default_value)
-        if parent_value != default_value:
-            return parent_value
-
-    # Return current value (which is the default)
-    return current_value

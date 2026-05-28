@@ -180,10 +180,13 @@ Overall posture is reasonable for an API client; no critical issues.
   removed; it now inherits the base all-query behavior (no `OPERATION_PARAMS`
   needed). `OPERATION_CONFIG` is now gone from the entire codebase. Added
   `tests/commands/test_archives.py` (the API previously had no tests).
-- **Two overlapping context-precedence mechanisms.** `resolve_context_value`
-  (`decorators.py:91`) and `update_context` (`execution.py:18`) both implement
-  "use value if it differs from default, else inherit." A reader has to hold
-  both in their head. Consolidate into one.
+- ~~**Two overlapping context-precedence mechanisms.**~~ ✅ **DONE** —
+  `resolve_context_value` is deleted; the API group callback now uses the same
+  `update_context` as every leaf command, so there is one merge rule (write
+  only when an option differs from its default, else inherit). Its explicit
+  parent-context check was dead code (Click shares the `ctx.obj` dict down the
+  chain). Verified the full precedence chain (leaf > group > root > default)
+  still holds for both `domain` and `timeout`.
 - **Copy-paste help text.** `sbom.py` and `licenses.py` both carry parser's
   "Submit a dependency parsing job" help string — `sbom` isn't a parsing job.
 - `repos.py:13` `lookupHostOwner: [("HostName", ...)]` — the capital `H` is

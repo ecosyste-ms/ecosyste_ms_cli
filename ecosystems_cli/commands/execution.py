@@ -16,7 +16,14 @@ console = Console()
 
 
 def update_context(ctx, timeout: int, format: str, domain: Optional[str], mailto: Optional[str] = None):
-    """Update context with command-level options if they differ from defaults.
+    """Merge command-level options into ``ctx.obj``.
+
+    The single context-precedence mechanism, used by both the API group callback
+    and every leaf command. An option is written only when it differs from its
+    default (i.e. was explicitly set at this level); otherwise the value already
+    in ``ctx.obj`` -- inherited from the parent context -- is left untouched.
+    The net precedence is therefore: leaf option > group option > root option >
+    default.
 
     Args:
         ctx: Click context
