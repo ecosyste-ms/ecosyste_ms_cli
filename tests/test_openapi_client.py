@@ -1,15 +1,52 @@
 """Tests for the OpenAPI client."""
 
+from datetime import datetime
 from unittest import mock
 
 import pytest
+import requests
 import yaml
 
 from ecosystems_cli.exceptions import (
+    APIAuthenticationError,
+    APIConnectionError,
+    APIHTTPError,
+    APINotFoundError,
+    APIRateLimitError,
+    APIServerError,
+    APITimeoutError,
     InvalidAPIError,
     InvalidOperationError,
 )
 from ecosystems_cli.openapi_client import OpenAPIClientFactory, get_client
+
+
+def _make_response(status_code=200, json_data=None, text="", headers=None, content=None, raise_on_json=False):
+    """Build a fake ``requests.Response`` for driving ``OpenAPIClientFactory.call``."""
+    resp = mock.Mock()
+    resp.status_code = status_code
+    resp.headers = headers or {}
+    resp.text = text
+    if content is not None:
+        resp.content = content
+    elif json_data is not None:
+        resp.content = b"{}"
+    else:
+        resp.content = text.encode() if text else b""
+    if raise_on_json:
+        resp.json.side_effect = ValueError("not json")
+    else:
+        resp.json.return_value = json_data if json_data is not None else {}
+    return resp
+
+
+@pytest.fixture
+def call_factory(mock_spec_file):
+    """A factory with the test spec loaded and a mocked HTTP session."""
+    factory = OpenAPIClientFactory(specs_dir=mock_spec_file)
+    factory.get_openapi("test")
+    factory._session = mock.Mock()
+    return factory
 
 
 @pytest.fixture
@@ -185,3 +222,168 @@ class TestGetClient:
 
         # Assert
         mock_factory_get_client.assert_called_once_with("test", base_url=None, timeout=30, mailto="test@example.com")
+
+
+class TestCallRequestBuilding:
+    """How call() turns operation + params into an HTTP request."""
+
+    def test_successful_get_returns_parsed_body(self, call_factory):
+        call_factory._session.request.return_value = _make_response(json_data={"data": "ok"})
+
+        result = call_factory.call("test", "getTest", query_params={"id": "abc"})
+
+        assert result == {"data": "ok"}
+        kwargs = call_factory._session.request.call_args.kwargs
+        assert kwargs["method"] == "GET"
+        assert kwargs["url"] == "https://test.example.com/api/v1/test"
+        assert kwargs["params"] == {"id": "abc"}
+        assert kwargs["allow_redirects"] is False
+
+    def test_path_params_are_url_encoded(self, call_factory):
+        """Path values are fully encoded (safe=''), so '/' and spaces can't escape the segment."""
+        call_factory._session.request.return_value = _make_response(json_data={"id": "x"})
+
+        call_factory.call("test", "getItem", path_params={"itemId": "a/b c"})
+
+        url = call_factory._session.request.call_args.kwargs["url"]
+        assert url == "https://test.example.com/api/v1/items/a%2Fb%20c"
+
+    def test_base_url_override_is_used(self, call_factory):
+        call_factory._session.request.return_value = _make_response(json_data={})
+
+        call_factory.call("test", "getTest", base_url="https://override.example.com")
+
+        url = call_factory._session.request.call_args.kwargs["url"]
+        assert url.startswith("https://override.example.com/")
+
+    def test_mailto_adds_query_param_and_user_agent(self, call_factory):
+        call_factory._session.request.return_value = _make_response(json_data={})
+
+        call_factory.call("test", "getTest", mailto="me@example.com")
+
+        kwargs = call_factory._session.request.call_args.kwargs
+        assert kwargs["params"]["mailto"] == "me@example.com"
+        assert "mailto:me@example.com" in kwargs["headers"]["User-Agent"]
+
+    def test_body_is_sent_as_json(self, call_factory):
+        call_factory._session.request.return_value = _make_response(json_data={})
+
+        call_factory.call("test", "getTest", body={"url": "https://x"})
+
+        assert call_factory._session.request.call_args.kwargs["json"] == {"url": "https://x"}
+
+
+class TestCallRedirectHandling:
+    """Redirects are not followed; the Location is surfaced to the caller."""
+
+    @pytest.mark.parametrize("status", [301, 302, 303, 307, 308])
+    def test_redirect_returns_location(self, call_factory, status):
+        call_factory._session.request.return_value = _make_response(
+            status_code=status, headers={"Location": "https://jobs.example.com/jobs/42"}
+        )
+
+        result = call_factory.call("test", "getTest")
+
+        assert result == {"location": "https://jobs.example.com/jobs/42", "status_code": status}
+
+
+class TestCallErrorHandling:
+    """Status codes map to typed exceptions."""
+
+    def test_404_raises_not_found(self, call_factory):
+        call_factory._session.request.return_value = _make_response(status_code=404, text="missing")
+        with pytest.raises(APINotFoundError):
+            call_factory.call("test", "getTest")
+
+    def test_401_raises_authentication_error(self, call_factory):
+        call_factory._session.request.return_value = _make_response(status_code=401, text="nope")
+        with pytest.raises(APIAuthenticationError):
+            call_factory.call("test", "getTest")
+
+    def test_500_raises_server_error_with_status(self, call_factory):
+        call_factory._session.request.return_value = _make_response(status_code=503, text="down")
+        with pytest.raises(APIServerError) as exc:
+            call_factory.call("test", "getTest")
+        assert exc.value.status_code == 503
+
+    def test_generic_4xx_raises_http_error(self, call_factory):
+        call_factory._session.request.return_value = _make_response(status_code=422, text="bad")
+        with pytest.raises(APIHTTPError) as exc:
+            call_factory.call("test", "getTest")
+        assert exc.value.status_code == 422
+
+    def test_429_parses_rate_limit_headers(self, call_factory):
+        call_factory._session.request.return_value = _make_response(
+            status_code=429,
+            headers={
+                "X-RateLimit-Limit": "60",
+                "X-RateLimit-Remaining": "0",
+                "X-RateLimit-Reset": "1700000000",
+                "Retry-After": "30",
+            },
+        )
+        with pytest.raises(APIRateLimitError) as exc:
+            call_factory.call("test", "getTest")
+        assert exc.value.limit == 60
+        assert exc.value.remaining == 0
+        assert exc.value.retry_after == 30
+        assert exc.value.reset_time is not None
+
+    def test_429_tolerates_malformed_rate_limit_headers(self, call_factory):
+        call_factory._session.request.return_value = _make_response(
+            status_code=429, headers={"X-RateLimit-Limit": "not-a-number"}
+        )
+        with pytest.raises(APIRateLimitError) as exc:
+            call_factory.call("test", "getTest")
+        assert exc.value.limit is None
+
+    def test_timeout_raises_api_timeout(self, call_factory):
+        call_factory._session.request.side_effect = requests.exceptions.Timeout()
+        with pytest.raises(APITimeoutError):
+            call_factory.call("test", "getTest", timeout=5)
+
+    def test_connection_error_raises_api_connection_error(self, call_factory):
+        call_factory._session.request.side_effect = requests.exceptions.ConnectionError("boom")
+        with pytest.raises(APIConnectionError):
+            call_factory.call("test", "getTest")
+
+    def test_generic_request_exception_raises_api_connection_error(self, call_factory):
+        call_factory._session.request.side_effect = requests.exceptions.RequestException("weird")
+        with pytest.raises(APIConnectionError):
+            call_factory.call("test", "getTest")
+
+
+class TestCallResponseParsing:
+    """_parse_response and _convert_dates."""
+
+    def test_empty_body_returns_empty_dict(self, call_factory):
+        call_factory._session.request.return_value = _make_response(content=b"")
+        assert call_factory.call("test", "getTest") == {}
+
+    def test_non_json_body_returns_result_wrapper(self, call_factory):
+        call_factory._session.request.return_value = _make_response(text="plain text", raise_on_json=True)
+        assert call_factory.call("test", "getTest") == {"result": "plain text"}
+
+    def test_iso_date_strings_become_datetimes(self, call_factory):
+        call_factory._session.request.return_value = _make_response(
+            json_data={
+                "created_at": "2024-01-15T10:30:00Z",
+                "fractional": "2024-01-15T10:30:00.500Z",
+                "no_zone": "2024-01-15T10:30:00",
+                "name": "lodash",
+                "date_only": "2024-01-15",
+                "nested": {"updated_at": "2024-01-15T10:30:00Z"},
+                "items": ["2024-01-15T10:30:00Z"],
+            }
+        )
+
+        result = call_factory.call("test", "getTest")
+
+        assert isinstance(result["created_at"], datetime)
+        assert isinstance(result["fractional"], datetime)
+        assert isinstance(result["no_zone"], datetime)
+        assert isinstance(result["nested"]["updated_at"], datetime)
+        assert isinstance(result["items"][0], datetime)
+        # Non-ISO strings are left untouched.
+        assert result["name"] == "lodash"
+        assert result["date_only"] == "2024-01-15"

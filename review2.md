@@ -18,13 +18,14 @@ into a single mechanism in `packages.py`. The code is clean, lint-passing, and
 readable. The design is sound for what it is: a thin, spec-driven wrapper that
 auto-generates Click commands and MCP tools from OpenAPI specs.
 
-Two real defects and one large test blind spot keep this from being a clean
-ship:
+Two real defects and one large test blind spot were the headline issues; **both
+have since been addressed in this branch:**
 
-1. **The CLI cannot send HTTP request bodies at all** → `issues create_job`
-   and `packages bulk_lookup_packages` are generated but non-functional.
-2. **The core HTTP layer (`openapi_client.call`) has zero tests** — the single
-   most important and most security-relevant module is the least covered.
+1. ~~**The CLI cannot send HTTP request bodies at all**~~ → ✅ fixed: the
+   generator now supports `requestBody` inputs, so `issues create_job` and
+   `packages bulk_lookup_packages` work.
+2. ~~**The core HTTP layer (`openapi_client.call`) has zero tests**~~ → ✅
+   fixed: 22 tests now cover the request/error/redirect/parse path.
 
 Everything else is consistency/cleanup. Details below, mapped to your
 questions.
@@ -218,11 +219,14 @@ the generated command path" would pay for itself.
   across the job APIs).
 - ✅ **`--purl` decomposition** and **`get_domain` precedence / HTTP rejection**:
   genuinely tested.
-- ❌ **`openapi_client.call` HTTP layer: zero tests.** Redirect handling,
-  `_handle_http_errors` (rate-limit header parsing, 401/404/429/5xx),
-  timeout/connection mapping, `_parse_response`, `_convert_dates`, and the
-  security-relevant path-param encoding are all unexercised. For a CLI whose
-  whole job is HTTP, this is the biggest risk.
+- ✅ **`openapi_client.call` HTTP layer: now covered.** Added 22 tests
+  (`test_openapi_client.py`) driving the call path via a mocked session:
+  request building, **path-param URL-encoding** (the security-relevant
+  `safe=''` case), redirect→`location` (all 5 status codes), every
+  error-status mapping (401/404/422/5xx), rate-limit header parsing incl. the
+  malformed-header tolerance branch, timeout/connection/request-exception
+  mapping, and `_parse_response`/`_convert_dates` (empty, non-JSON, and ISO
+  date coercion incl. the "left untouched" cases). Original gap analysis below.
 - ❌ **MCP `call_tool` routing untested.** Tests call `_call_api` directly,
   bypassing name-parsing and spec-driven param routing
   (`mcp_server.py:109-171`); two of the "call_tool" tests are tautological
@@ -267,7 +271,9 @@ correctness and consumer impact, not uptime.
 1. ~~**(HIGH)** Fix or hide the body-less POST commands — `issues create_job`,
    `packages bulk_lookup_packages` (Bug 1).~~ ✅ **DONE** — generator now
    supports `requestBody` inputs.
-2. **(HIGH)** Add tests for the `openapi_client.call` HTTP/error/redirect path.
+2. ~~**(HIGH)** Add tests for the `openapi_client.call` HTTP/error/redirect
+   path.~~ ✅ **DONE** — 22 tests covering request build, encoding, redirects,
+   error mapping, rate-limit parsing, and response parsing.
 3. **(MED)** Unify the three `--purl` implementations; delete dead
    `DefaultOperationHandler` config; remove the `method_name` trap.
 4. **(MED)** Harden `table`/`tsv` for non-dict lists; reconsider
