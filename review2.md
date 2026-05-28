@@ -162,12 +162,19 @@ Overall posture is reasonable for an API client; no critical issues.
   unregistered API a predictable "no path params, all query params" fallback
   instead of guessing from a stale op-id table. Locked in by `test_handlers.py`
   (factory resolution + fallback + the base OPERATION_PARAMS contract).
-- **Unify the three `--purl` mechanisms.** `packages.py` has the clean
-  `_attach_purl_option`; `advisories.py` uses the `override_auto_command`
-  decorator; but `dependabot.py:14-34` and `repos.py:11-50` still hand-roll
-  `params.insert(...)` + callback-swap. One feature, three implementations — and
-  the hand-rolled ones silently no-op if the auto-generated command name ever
-  changes. Promote `_attach_purl_option` to a shared helper.
+- ~~**Unify the three `--purl` mechanisms.**~~ ✅ **DONE** — extracted
+  `attach_purl_option(group, command_name, …)` into a shared
+  `commands/purl_options.py`; `packages.py`, `dependabot.py`, and `repos.py`
+  now all call it. The hand-rolled `params.insert`/callback-swap blocks in
+  dependabot/repos are gone. **Side-effect bug fixed:** the generator reverses
+  auto-generated argument order, and repos' old hand-rolled version didn't
+  re-normalize it, so `repos usage_package` actually bound `PACKAGE ECOSYSTEM`
+  — the reverse of its own help text and error message. Routing through the
+  shared helper (which re-sorts args to the declared `targets` order) fixes the
+  binding to `ECOSYSTEM PACKAGE`. **User-facing:** anyone who passed positional
+  args to `repos usage_package{,_dependencies,_dependent_repositories}` in the
+  old (reversed) order must now pass them in documented order; `--purl` users
+  are unaffected. 4 repos tests that encoded the reversed order were corrected.
 - **`archives.py` handler** is the lone holdout still using a custom
   `OPERATION_CONFIG` + `build_params` override while the other 15 use
   `OPERATION_PARAMS`. It's all-query, so it could just be an empty
@@ -275,7 +282,7 @@ correctness and consumer impact, not uptime.
 2. ~~**(HIGH)** Add tests for the `openapi_client.call` HTTP/error/redirect
    path.~~ ✅ **DONE** — 22 tests covering request build, encoding, redirects,
    error mapping, rate-limit parsing, and response parsing.
-3. **(MED)** Unify the three `--purl` implementations; ~~delete dead
+3. **(MED)** ~~Unify the three `--purl` implementations~~ ✅; ~~delete dead
    `DefaultOperationHandler` config~~ ✅; remove the `method_name` trap.
 4. **(MED)** Harden `table`/`tsv` for non-dict lists; reconsider
    `_convert_dates` scope.
