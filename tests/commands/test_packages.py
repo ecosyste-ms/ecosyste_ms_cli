@@ -968,7 +968,7 @@ class TestPackagesCommands:
 
         result = self.runner.invoke(
             self.packages_group,
-            ["get_registry_package_version_numbers", "lodash", "npmjs.org"],
+            ["get_registry_package_version_numbers", "npmjs.org", "lodash"],
             obj={"timeout": 20, "format": "json"},
         )
 
@@ -1003,7 +1003,7 @@ class TestPackagesCommands:
 
         result = self.runner.invoke(
             self.packages_group,
-            ["get_registry_package_versions", "--purl", "pkg:npm/lodash", "django", "pypi.org"],
+            ["get_registry_package_versions", "--purl", "pkg:npm/lodash", "pypi.org", "django"],
             obj={"timeout": 20, "format": "json"},
         )
 

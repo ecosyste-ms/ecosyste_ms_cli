@@ -63,19 +63,21 @@ class TestEcosystemsMCPServer:
         expected_apis = [
             "advisories",
             "archives",
+            "commits",
             "dependabot",
             "diff",
-            "repos",
-            "packages",
+            "docker",
             "issues",
             "licenses",
-            "sponsors",
-            "timeline",
-            "docker",
             "opencollective",
+            "packages",
             "parser",
+            "repos",
             "resolve",
             "sbom",
+            "sponsors",
+            "summary",
+            "timeline",
         ]
         assert mcp_server.apis == expected_apis
 

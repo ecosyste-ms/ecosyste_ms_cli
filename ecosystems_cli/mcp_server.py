@@ -26,22 +26,25 @@ class EcosystemsMCPServer:
 
     def __init__(self):
         self.server = Server("ecosystems-cli")
+        # Must mirror the CLI command set (cli.COMMAND_REGISTRY); keep in sync.
         self.apis = [
             "advisories",
             "archives",
+            "commits",
             "dependabot",
             "diff",
-            "repos",
-            "packages",
+            "docker",
             "issues",
             "licenses",
-            "sponsors",
-            "timeline",
-            "docker",
             "opencollective",
+            "packages",
             "parser",
+            "repos",
             "resolve",
             "sbom",
+            "sponsors",
+            "summary",
+            "timeline",
         ]
         self._register_handlers()
 
