@@ -175,10 +175,11 @@ Overall posture is reasonable for an API client; no critical issues.
   args to `repos usage_package{,_dependencies,_dependent_repositories}` in the
   old (reversed) order must now pass them in documented order; `--purl` users
   are unaffected. 4 repos tests that encoded the reversed order were corrected.
-- **`archives.py` handler** is the lone holdout still using a custom
-  `OPERATION_CONFIG` + `build_params` override while the other 15 use
-  `OPERATION_PARAMS`. It's all-query, so it could just be an empty
-  `OPERATION_PARAMS`.
+- ~~**`archives.py` handler** is the lone holdout still using a custom
+  `OPERATION_CONFIG` + `build_params` override.~~ ✅ **DONE** — override
+  removed; it now inherits the base all-query behavior (no `OPERATION_PARAMS`
+  needed). `OPERATION_CONFIG` is now gone from the entire codebase. Added
+  `tests/commands/test_archives.py` (the API previously had no tests).
 - **Two overlapping context-precedence mechanisms.** `resolve_context_value`
   (`decorators.py:91`) and `update_context` (`execution.py:18`) both implement
   "use value if it differs from default, else inherit." A reader has to hold
