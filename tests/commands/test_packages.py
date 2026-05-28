@@ -1053,3 +1053,36 @@ class TestPackagesCommands:
             base_url=mock.ANY,
         )
         mock_print_output.assert_called_once()
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_bulk_lookup_packages_sends_array_body(self, mock_print_output, mock_api_factory):
+        """bulk_lookup_packages posts its array fields as a JSON request body."""
+        mock_api_factory.call.return_value = []
+
+        result = self.runner.invoke(
+            self.packages_group,
+            [
+                "bulk_lookup_packages",
+                "--purls",
+                "pkg:npm/a",
+                "--purls",
+                "pkg:npm/b",
+                "--ecosystem",
+                "npm",
+            ],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "packages",
+            "bulkLookupPackages",
+            path_params={},
+            query_params={},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+            body={"purls": ["pkg:npm/a", "pkg:npm/b"], "ecosystem": "npm"},
+        )
+        mock_print_output.assert_called_once()

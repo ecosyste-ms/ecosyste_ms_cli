@@ -277,6 +277,44 @@ class TestIssuesCommands:
 
     @mock.patch("ecosystems_cli.commands.execution.api_factory")
     @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_create_job_sends_request_body(self, mock_print_output, mock_api_factory):
+        """create_job's url lives in the request body, not query params."""
+        mock_api_factory.call.return_value = {"id": 7, "status": "queued"}
+
+        result = self.runner.invoke(
+            self.issues_group,
+            ["create_job", "--url", "https://github.com/octocat/hello-world"],
+            obj={"timeout": 20, "format": "json", "domain": None},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "issues",
+            "createJob",
+            path_params={},
+            query_params={},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+            body={"url": "https://github.com/octocat/hello-world"},
+        )
+        mock_print_output.assert_called_once()
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_create_job_requires_url(self, mock_print_output, mock_api_factory):
+        """The body's required field is enforced by Click; no call is made."""
+        result = self.runner.invoke(
+            self.issues_group,
+            ["create_job"],
+            obj={"timeout": 20, "format": "json", "domain": None},
+        )
+
+        assert result.exit_code != 0
+        mock_api_factory.call.assert_not_called()
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
     def test_get_job(self, mock_print_output, mock_api_factory):
         """Test getting a job status."""
         mock_api_factory.call.return_value = {

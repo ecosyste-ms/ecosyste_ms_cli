@@ -36,6 +36,23 @@ def update_context(ctx, timeout: int, format: str, domain: Optional[str], mailto
         ctx.obj["mailto"] = mailto
 
 
+def _extract_body(call_kwargs: dict, body_keys: Optional[list]) -> dict:
+    """Pull request-body fields out of ``call_kwargs`` into a JSON body dict.
+
+    Removes each ``body_keys`` entry from ``call_kwargs`` (mutating it) so the
+    remaining kwargs map cleanly to path/query parameters. Unset values are
+    dropped; Click's repeatable options arrive as tuples and are normalized to
+    lists so they serialize as JSON arrays.
+    """
+    body: dict = {}
+    for key in body_keys or []:
+        value = call_kwargs.pop(key, None)
+        if value is None or value == ():
+            continue
+        body[key] = list(value) if isinstance(value, tuple) else value
+    return body
+
+
 def execute_api_call(
     ctx,
     api_name: str,
@@ -43,6 +60,7 @@ def execute_api_call(
     operation_id: Optional[str] = None,
     call_args: tuple = (),
     call_kwargs: Optional[dict] = None,
+    body_keys: Optional[list] = None,
 ):
     """Execute an API call with proper error handling.
 
@@ -53,44 +71,41 @@ def execute_api_call(
         operation_id: Operation ID (for call method)
         call_args: Positional arguments for the API call
         call_kwargs: Keyword arguments for the API call
+        body_keys: Names of kwargs that belong in the JSON request body rather
+            than the path/query parameters
     """
     if call_kwargs is None:
         call_kwargs = {}
+
+    # Separate request-body fields before path/query mapping.
+    body = _extract_body(call_kwargs, body_keys)
 
     # Get domain with proper precedence
     domain = get_domain_with_precedence(api_name, ctx.obj.get("domain"))
     base_url = build_base_url(domain, api_name)
 
     try:
-        if operation_id:
-            if call_args or call_kwargs:
-                # Use operation handler to build parameters
-                handler = OperationHandlerFactory.get_handler(api_name)
-                path_params, query_params = handler.build_params(operation_id, call_args, call_kwargs)
-                result = api_factory.call(
-                    api_name,
-                    operation_id,
-                    path_params=path_params,
-                    query_params=query_params,
-                    timeout=ctx.obj.get("timeout", DEFAULT_TIMEOUT),
-                    mailto=ctx.obj.get("mailto"),
-                    base_url=base_url,
-                )
-            else:
-                # Simple operation call without parameters
-                result = api_factory.call(
-                    api_name,
-                    operation_id,
-                    path_params={},
-                    query_params={},
-                    timeout=ctx.obj.get("timeout", DEFAULT_TIMEOUT),
-                    mailto=ctx.obj.get("mailto"),
-                    base_url=base_url,
-                )
-        elif method_name:
-            raise ValueError("Direct method calls not supported")
-        else:
+        if not operation_id:
+            if method_name:
+                raise ValueError("Direct method calls not supported")
             raise ValueError("Either method_name or operation_id must be provided")
+
+        handler = OperationHandlerFactory.get_handler(api_name)
+        path_params, query_params = handler.build_params(operation_id, call_args, call_kwargs)
+
+        call_params = {
+            "path_params": path_params,
+            "query_params": query_params,
+            "timeout": ctx.obj.get("timeout", DEFAULT_TIMEOUT),
+            "mailto": ctx.obj.get("mailto"),
+            "base_url": base_url,
+        }
+        # Only send a body when there is one, so body-less calls keep their
+        # existing call signature.
+        if body:
+            call_params["body"] = body
+
+        result = api_factory.call(api_name, operation_id, **call_params)
 
         print_output(result, ctx.obj.get("format", DEFAULT_OUTPUT_FORMAT), console=console)
     except EcosystemsCLIError as e:
