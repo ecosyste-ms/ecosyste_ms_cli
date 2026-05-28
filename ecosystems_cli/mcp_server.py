@@ -109,66 +109,77 @@ class EcosystemsMCPServer:
         @self.server.call_tool()
         async def call_tool(name: str, arguments: Dict[str, Any]) -> List[TextContent]:
             """Execute a tool call."""
-            try:
-                # Parse the tool name to get API and operation
-                if name.endswith("_call"):
-                    # Generic call tool
-                    api = name[:-5]  # Remove '_call' suffix
-                    if api not in self.apis:
-                        return [TextContent(type="text", text=f"Unknown API: {api}")]
-                    operation = arguments.get("operation")
-                    path_params = arguments.get("path_params", {})
-                    query_params = arguments.get("query_params", {})
-                    body = arguments.get("body", {})
-                else:
-                    # Specific operation tool
-                    parts = name.split("_", 1)
-                    if len(parts) != 2:
-                        return [TextContent(type="text", text=f"Invalid tool name: {name}")]
+            return await self._call_tool(name, arguments)
 
-                    api, operation = parts
-                    if api not in self.apis:
-                        return [TextContent(type="text", text=f"Unknown API: {api}")]
+    async def _call_tool(self, name: str, arguments: Dict[str, Any]) -> List[TextContent]:
+        """Route a tool call to the right API operation and return its result.
 
-                    # Extract parameters from arguments
-                    path_params = {}
-                    query_params = {}
-                    body = {}
+        Tool names are ``{api}_{operationId}`` plus a generic ``{api}_call`` per
+        API. For specific tools, the operation's spec decides which arguments are
+        path vs query parameters; ``body`` is forwarded when the operation has a
+        request body. The generic ``_call`` tool passes path/query/body through
+        as given.
+        """
+        try:
+            # Parse the tool name to get API and operation
+            if name.endswith("_call"):
+                # Generic call tool
+                api = name[:-5]  # Remove '_call' suffix
+                if api not in self.apis:
+                    return [TextContent(type="text", text=f"Unknown API: {api}")]
+                operation = arguments.get("operation")
+                path_params = arguments.get("path_params", {})
+                query_params = arguments.get("query_params", {})
+                body = arguments.get("body", {})
+            else:
+                # Specific operation tool
+                parts = name.split("_", 1)
+                if len(parts) != 2:
+                    return [TextContent(type="text", text=f"Invalid tool name: {name}")]
 
-                    # Load spec to determine parameter types
-                    spec = load_api_spec(api)
-                    if spec and "paths" in spec:
-                        for path, methods in spec["paths"].items():
-                            for method, op_spec in methods.items():
-                                if op_spec.get("operationId") == operation:
-                                    # Extract parameters based on spec
-                                    for param in op_spec.get("parameters", []):
-                                        param_name = param.get("name")
-                                        param_in = param.get("in")
+                api, operation = parts
+                if api not in self.apis:
+                    return [TextContent(type="text", text=f"Unknown API: {api}")]
 
-                                        if param_name in arguments:
-                                            if param_in == "path":
-                                                path_params[param_name] = arguments[param_name]
-                                            elif param_in == "query":
-                                                query_params[param_name] = arguments[param_name]
+                # Extract parameters from arguments
+                path_params = {}
+                query_params = {}
+                body = {}
 
-                                    # Check for request body
-                                    if "requestBody" in op_spec and "body" in arguments:
-                                        body = arguments["body"]
+                # Load spec to determine parameter types
+                spec = load_api_spec(api)
+                if spec and "paths" in spec:
+                    for path, methods in spec["paths"].items():
+                        for method, op_spec in methods.items():
+                            if op_spec.get("operationId") == operation:
+                                # Extract parameters based on spec
+                                for param in op_spec.get("parameters", []):
+                                    param_name = param.get("name")
+                                    param_in = param.get("in")
 
-                                    break
+                                    if param_name in arguments:
+                                        if param_in == "path":
+                                            path_params[param_name] = arguments[param_name]
+                                        elif param_in == "query":
+                                            query_params[param_name] = arguments[param_name]
 
-                # Call the API
-                result = await self._call_api(api, operation, path_params, query_params, body)
+                                # Check for request body
+                                if "requestBody" in op_spec and "body" in arguments:
+                                    body = arguments["body"]
 
-                # Format the result as JSON string
-                result_text = json.dumps(result, cls=DateTimeEncoder) if result else "No data returned"
+                                break
 
-                return [TextContent(type="text", text=result_text)]
+            # Call the API
+            result = await self._call_api(api, operation, path_params, query_params, body)
 
-            except Exception as e:
-                logger.error(f"Error calling tool {name}: {e}")
-                return [TextContent(type="text", text=f"Error: {str(e)}")]
+            # Format the result as JSON string
+            result_text = json.dumps(result, cls=DateTimeEncoder) if result else "No data returned"
+
+            return [TextContent(type="text", text=result_text)]
+
+        except Exception as e:
+            logger.error(f"Error calling tool {name}: {e}")
+            return [TextContent(type="text", text=f"Error: {str(e)}")]
 
     def _build_input_schema(self, operation: Dict[str, Any]) -> Dict[str, Any]:
         """Build JSON schema for tool input from OpenAPI operation."""

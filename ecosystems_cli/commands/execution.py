@@ -63,8 +63,7 @@ def _extract_body(call_kwargs: dict, body_keys: Optional[list]) -> dict:
 def execute_api_call(
     ctx,
     api_name: str,
-    method_name: Optional[str] = None,
-    operation_id: Optional[str] = None,
+    operation_id: str,
     call_args: tuple = (),
     call_kwargs: Optional[dict] = None,
     body_keys: Optional[list] = None,
@@ -74,8 +73,7 @@ def execute_api_call(
     Args:
         ctx: Click context
         api_name: Name of the API (e.g., 'repos', 'packages')
-        method_name: API client method name (for direct method calls)
-        operation_id: Operation ID (for call method)
+        operation_id: Operation ID to call
         call_args: Positional arguments for the API call
         call_kwargs: Keyword arguments for the API call
         body_keys: Names of kwargs that belong in the JSON request body rather
@@ -92,11 +90,6 @@ def execute_api_call(
     base_url = build_base_url(domain, api_name)
 
     try:
-        if not operation_id:
-            if method_name:
-                raise ValueError("Direct method calls not supported")
-            raise ValueError("Either method_name or operation_id must be provided")
-
         handler = OperationHandlerFactory.get_handler(api_name)
         path_params, query_params = handler.build_params(operation_id, call_args, call_kwargs)
 

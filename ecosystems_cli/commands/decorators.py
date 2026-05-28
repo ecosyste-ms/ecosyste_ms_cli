@@ -1,7 +1,6 @@
 """Decorators for ecosystems CLI commands."""
 
 from functools import wraps
-from typing import Optional
 
 import click
 
@@ -55,13 +54,12 @@ def override_auto_command(group: click.Group, name: str, **command_kwargs):
     return decorator
 
 
-def api_command(api_name: str, operation_id: Optional[str] = None, method_name: Optional[str] = None):
-    """Decorator that wraps commands with API execution logic.
+def api_command(api_name: str, operation_id: str):
+    """Decorator that wraps a command to execute an API operation.
 
     Args:
         api_name: Name of the API (e.g., 'repos', 'packages')
-        operation_id: Optional operation ID for 'call' method
-        method_name: Optional API client method name for direct calls
+        operation_id: Operation ID to execute
     """
 
     def decorator(func):
@@ -71,17 +69,8 @@ def api_command(api_name: str, operation_id: Optional[str] = None, method_name: 
         def wrapper(ctx, timeout, format, domain, mailto, *args, **kwargs):
             from ecosystems_cli.commands.execution import execute_api_call, update_context
 
-            # Update context with command-level options
             update_context(ctx, timeout, format, domain, mailto)
-
-            # Execute API call
-            if operation_id:
-                execute_api_call(ctx, api_name, operation_id=operation_id, call_args=args, call_kwargs=kwargs)
-            elif method_name:
-                execute_api_call(ctx, api_name, method_name=method_name, call_kwargs=kwargs)
-            else:
-                # If neither is specified, assume the function will handle it
-                func(ctx, *args, **kwargs)
+            execute_api_call(ctx, api_name, operation_id=operation_id, call_args=args, call_kwargs=kwargs)
 
         return wrapper
 
