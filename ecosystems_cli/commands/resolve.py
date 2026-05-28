@@ -11,6 +11,7 @@ from ecosystems_cli.commands.execution import update_context
 from ecosystems_cli.commands.generator import APICommandGenerator
 from ecosystems_cli.constants import DEFAULT_OUTPUT_FORMAT, DEFAULT_TIMEOUT
 from ecosystems_cli.exceptions import EcosystemsCLIError
+from ecosystems_cli.helpers.build_kwargs import build_kwargs
 from ecosystems_cli.helpers.get_domain import build_base_url, get_domain_with_precedence
 from ecosystems_cli.helpers.print_error import print_error
 from ecosystems_cli.helpers.print_output import print_output
@@ -80,11 +81,8 @@ def create_job(
         kwargs = {
             "package_name": package_name,
             "registry": registry,
+            **build_kwargs(version=version, before=before),
         }
-        if version:
-            kwargs["version"] = version
-        if before:
-            kwargs["before"] = before
 
         path_params, query_params = handler.build_params("createJob", (), kwargs)
 

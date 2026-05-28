@@ -7,6 +7,7 @@ import click
 from ecosystems_cli.commands.decorators import common_options
 from ecosystems_cli.commands.execution import execute_api_call, update_context
 from ecosystems_cli.commands.generator import APICommandGenerator
+from ecosystems_cli.helpers.build_kwargs import build_kwargs
 from ecosystems_cli.helpers.purl_parser import apply_purl
 
 advisories = APICommandGenerator.create_api_group("advisories")
@@ -79,28 +80,18 @@ def get_advisories(
     package_name = package_name or parsed.get("package_name")
 
     # Build kwargs for the API call
-    kwargs = {}
-    if ecosystem is not None:
-        kwargs["ecosystem"] = ecosystem
-    if package_name is not None:
-        kwargs["package_name"] = package_name
-    if severity is not None:
-        kwargs["severity"] = severity
-    if repository_url is not None:
-        kwargs["repository_url"] = repository_url
-    if page is not None:
-        kwargs["page"] = page
-    if per_page is not None:
-        kwargs["per_page"] = per_page
-    if created_after is not None:
-        kwargs["created_after"] = created_after
-    if updated_after is not None:
-        kwargs["updated_after"] = updated_after
-    if sort is not None:
-        kwargs["sort"] = sort
-    if order is not None:
-        kwargs["order"] = order
-    if source is not None:
-        kwargs["source"] = source
+    kwargs = build_kwargs(
+        ecosystem=ecosystem,
+        package_name=package_name,
+        severity=severity,
+        repository_url=repository_url,
+        page=page,
+        per_page=per_page,
+        created_after=created_after,
+        updated_after=updated_after,
+        sort=sort,
+        order=order,
+        source=source,
+    )
 
     execute_api_call(ctx, "advisories", operation_id="getAdvisories", call_args=(), call_kwargs=kwargs)

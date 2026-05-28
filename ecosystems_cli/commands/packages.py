@@ -7,6 +7,7 @@ import click
 from ecosystems_cli.commands.decorators import common_options
 from ecosystems_cli.commands.execution import execute_api_call, update_context
 from ecosystems_cli.commands.generator import APICommandGenerator
+from ecosystems_cli.helpers.build_kwargs import build_kwargs
 from ecosystems_cli.helpers.purl_parser import apply_purl, purl_type_to_registry
 
 packages = APICommandGenerator.create_api_group("packages")
@@ -143,11 +144,8 @@ def get_registry_package(
     kwargs = {
         "registryName": registry_name,
         "packageName": package_name,
+        **build_kwargs(page=page, per_page=per_page),
     }
-    if page is not None:
-        kwargs["page"] = page
-    if per_page is not None:
-        kwargs["per_page"] = per_page
 
     execute_api_call(ctx, "packages", operation_id="getRegistryPackage", call_args=(), call_kwargs=kwargs)
 
@@ -208,10 +206,7 @@ def get_registry_package_version(
         "registryName": registry_name,
         "packageName": package_name,
         "versionNumber": version_number,
+        **build_kwargs(page=page, per_page=per_page),
     }
-    if page is not None:
-        kwargs["page"] = page
-    if per_page is not None:
-        kwargs["per_page"] = per_page
 
     execute_api_call(ctx, "packages", operation_id="getRegistryPackageVersion", call_args=(), call_kwargs=kwargs)
