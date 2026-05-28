@@ -7,6 +7,7 @@ import click
 from ecosystems_cli.commands.decorators import common_options, override_auto_command
 from ecosystems_cli.commands.execution import update_context
 from ecosystems_cli.commands.generator import APICommandGenerator
+from ecosystems_cli.constants import DEFAULT_MAX_POLL_WAIT
 from ecosystems_cli.helpers.job_polling import submit_and_poll
 
 diff = APICommandGenerator.create_api_group("diff")
@@ -21,6 +22,12 @@ diff = APICommandGenerator.create_api_group("diff")
     default=None,
     help="Polling interval in seconds. If set, the command will poll the job status until completion.",
 )
+@click.option(
+    "--max-wait",
+    type=float,
+    default=DEFAULT_MAX_POLL_WAIT,
+    help=f"Maximum seconds to poll before giving up. Default is {DEFAULT_MAX_POLL_WAIT}.",
+)
 @common_options
 @click.pass_context
 def create_job(
@@ -32,6 +39,7 @@ def create_job(
     url_1: str,
     url_2: str,
     polling_interval: Optional[float],
+    max_wait: float,
 ):
     """Submit a diff job with two URLs to compare.
 
@@ -44,6 +52,7 @@ def create_job(
         url_1: First URL of file or zip/tar archive
         url_2: Second URL of file or zip/tar archive
         polling_interval: Optional polling interval in seconds
+        max_wait: Maximum seconds to poll before giving up
     """
     update_context(ctx, timeout, format, domain, mailto)
-    submit_and_poll(ctx, "diff", {"url_1": url_1, "url_2": url_2}, polling_interval=polling_interval)
+    submit_and_poll(ctx, "diff", {"url_1": url_1, "url_2": url_2}, polling_interval=polling_interval, max_wait=max_wait)

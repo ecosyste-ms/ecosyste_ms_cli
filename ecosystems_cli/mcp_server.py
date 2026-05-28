@@ -212,9 +212,12 @@ class EcosystemsMCPServer:
         domain = get_domain_with_precedence(api, None)
         base_url = build_base_url(domain, api)
 
-        # Call the operation using API factory
+        # api_factory.call() does blocking network I/O; run it in a worker thread
+        # so a slow request can't stall the asyncio event loop (and block other
+        # tool calls, cancellation, or heartbeats).
         try:
-            result = api_factory.call(
+            return await asyncio.to_thread(
+                api_factory.call,
                 api_name=api,
                 operation_id=operation,
                 path_params=path_params if path_params else None,
@@ -223,7 +226,6 @@ class EcosystemsMCPServer:
                 timeout=DEFAULT_TIMEOUT,
                 base_url=base_url,
             )
-            return result
         except EcosystemsCLIError as e:
             raise Exception(f"API Error: {str(e)}")
 

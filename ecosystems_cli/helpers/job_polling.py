@@ -11,7 +11,7 @@ from typing import Any, Dict, Optional
 
 from rich.console import Console
 
-from ecosystems_cli.constants import DEFAULT_OUTPUT_FORMAT, DEFAULT_TIMEOUT
+from ecosystems_cli.constants import DEFAULT_MAX_POLL_WAIT, DEFAULT_OUTPUT_FORMAT, DEFAULT_TIMEOUT
 from ecosystems_cli.exceptions import EcosystemsCLIError
 from ecosystems_cli.helpers.get_domain import build_base_url, get_domain_with_precedence
 from ecosystems_cli.helpers.print_error import print_error
@@ -22,6 +22,10 @@ console = Console()
 
 # Statuses that end a polling loop.
 TERMINAL_STATUSES = ("completed", "complete", "success", "failed", "error")
+
+# Consecutive getJob failures tolerated before giving up; lets transient blips
+# pass while still surfacing a persistent error promptly.
+MAX_CONSECUTIVE_POLL_ERRORS = 3
 
 
 def _extract_job_id(result: Dict[str, Any]) -> Optional[str]:
@@ -37,13 +41,22 @@ def _extract_job_id(result: Dict[str, Any]) -> Optional[str]:
     return None
 
 
-def submit_and_poll(ctx, api_name: str, create_payload: dict, *, polling_interval: Optional[float]) -> None:
+def submit_and_poll(
+    ctx,
+    api_name: str,
+    create_payload: dict,
+    *,
+    polling_interval: Optional[float],
+    max_wait: float = DEFAULT_MAX_POLL_WAIT,
+) -> None:
     """Submit a ``createJob`` request and, when polling is enabled, poll ``getJob``
     until the job reaches a terminal status.
 
     When ``polling_interval`` is None the create response is printed as-is. Otherwise
     the job id is resolved (response ``id`` or trailing segment of ``location``) and
-    the job is polled every ``polling_interval`` seconds until its status is terminal.
+    the job is polled every ``polling_interval`` seconds until its status is terminal,
+    or until ``max_wait`` seconds elapse (a stuck job must not hang the CLI forever).
+    Transient ``getJob`` failures are tolerated up to ``MAX_CONSECUTIVE_POLL_ERRORS``.
     Progress messages are shown only in interactive (table) output mode.
     """
     from ecosystems_cli.commands.handlers import OperationHandlerFactory
@@ -51,9 +64,9 @@ def submit_and_poll(ctx, api_name: str, create_payload: dict, *, polling_interva
     api_domain = get_domain_with_precedence(api_name, ctx.obj.get("domain"))
     base_url = build_base_url(api_domain, api_name)
     output_format = ctx.obj.get("format", DEFAULT_OUTPUT_FORMAT)
+    handler = OperationHandlerFactory.get_handler(api_name)
 
     try:
-        handler = OperationHandlerFactory.get_handler(api_name)
         path_params, query_params = handler.build_params("createJob", (), create_payload)
 
         result = api_factory.call(
@@ -79,31 +92,54 @@ def submit_and_poll(ctx, api_name: str, create_payload: dict, *, polling_interva
         is_interactive = output_format == "table"
         if is_interactive:
             console.print(f"[yellow]Job created with ID: {job_id}[/yellow]")
-            console.print(f"[yellow]Polling every {polling_interval} seconds...[/yellow]")
+            console.print(f"[yellow]Polling every {polling_interval} seconds (timeout {max_wait:g}s)...[/yellow]")
+
+        path_params_get, query_params_get = handler.build_params("getJob", (), {"job_id": job_id})
+        deadline = time.monotonic() + max_wait
+        last_response = result
+        consecutive_errors = 0
 
         while True:
             time.sleep(polling_interval)
 
-            handler_get = OperationHandlerFactory.get_handler(api_name)
-            path_params_get, query_params_get = handler_get.build_params("getJob", (), {"job_id": job_id})
+            try:
+                job_status = api_factory.call(
+                    api_name,
+                    "getJob",
+                    path_params=path_params_get,
+                    query_params=query_params_get,
+                    timeout=ctx.obj.get("timeout", DEFAULT_TIMEOUT),
+                    mailto=ctx.obj.get("mailto"),
+                    base_url=base_url,
+                )
+            except EcosystemsCLIError as e:
+                consecutive_errors += 1
+                if consecutive_errors >= MAX_CONSECUTIVE_POLL_ERRORS:
+                    raise
+                if is_interactive:
+                    console.print(
+                        f"[red]Status check failed ({consecutive_errors}/{MAX_CONSECUTIVE_POLL_ERRORS}), "
+                        f"retrying: {e}[/red]"
+                    )
+                job_status = None
 
-            job_status = api_factory.call(
-                api_name,
-                "getJob",
-                path_params=path_params_get,
-                query_params=query_params_get,
-                timeout=ctx.obj.get("timeout", DEFAULT_TIMEOUT),
-                mailto=ctx.obj.get("mailto"),
-                base_url=base_url,
-            )
+            if job_status is not None:
+                consecutive_errors = 0
+                last_response = job_status
+                status = job_status.get("status", "unknown")
+                if is_interactive:
+                    console.print(f"[cyan]Job status: {status}[/cyan]")
+                if status in TERMINAL_STATUSES:
+                    print_output(job_status, output_format, console=console)
+                    return
 
-            status = job_status.get("status", "unknown")
-            if is_interactive:
-                console.print(f"[cyan]Job status: {status}[/cyan]")
-
-            if status in TERMINAL_STATUSES:
-                print_output(job_status, output_format, console=console)
-                break
+            if time.monotonic() >= deadline:
+                print_error(
+                    f"Polling timed out after {max_wait:g}s without reaching a terminal status.",
+                    console=console,
+                )
+                print_output(last_response, output_format, console=console)
+                return
 
     except EcosystemsCLIError as e:
         print_error(str(e), console=console)

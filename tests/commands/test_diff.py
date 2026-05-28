@@ -203,3 +203,48 @@ class TestDiffCommands:
 
         # Verify output was still printed with the create response
         mock_print_output.assert_called_once_with(create_response, "json", console=mock.ANY)
+
+    @mock.patch("ecosystems_cli.helpers.job_polling.api_factory")
+    @mock.patch("ecosystems_cli.helpers.job_polling.print_output")
+    @mock.patch("ecosystems_cli.helpers.job_polling.print_error")
+    @mock.patch("ecosystems_cli.helpers.job_polling.time.sleep")
+    def test_polling_times_out_on_stuck_job(self, mock_sleep, mock_print_error, mock_print_output, mock_api_factory):
+        """A job that never reaches a terminal status must stop at --max-wait, not hang."""
+        create_response = {"id": "stuck-1", "status": "pending", "location": "https://diff.ecosyste.ms/api/v1/jobs/stuck-1"}
+        processing = {"id": "stuck-1", "status": "processing"}
+        # max-wait 0 means the deadline is reached after the first status check.
+        mock_api_factory.call.side_effect = [create_response, processing, processing, processing]
+
+        result = self.runner.invoke(
+            self.diff_group,
+            ["create_job", "url1", "url2", "--polling-interval", "1", "--max-wait", "0"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_print_error.assert_called_once()
+        assert "timed out" in mock_print_error.call_args[0][0].lower()
+        # The last observed status is still printed for the user.
+        mock_print_output.assert_called_once_with(processing, "json", console=mock.ANY)
+
+    @mock.patch("ecosystems_cli.helpers.job_polling.api_factory")
+    @mock.patch("ecosystems_cli.helpers.job_polling.print_output")
+    @mock.patch("ecosystems_cli.helpers.job_polling.time.sleep")
+    def test_polling_tolerates_transient_error(self, mock_sleep, mock_print_output, mock_api_factory):
+        """A single failed status check should not abort an otherwise healthy poll."""
+        from ecosystems_cli.exceptions import EcosystemsCLIError
+
+        create_response = {"id": "j1", "status": "pending", "location": "https://diff.ecosyste.ms/api/v1/jobs/j1"}
+        completed = {"id": "j1", "status": "completed", "results": {}}
+        mock_api_factory.call.side_effect = [create_response, EcosystemsCLIError("temporary blip"), completed]
+
+        result = self.runner.invoke(
+            self.diff_group,
+            ["create_job", "url1", "url2", "--polling-interval", "1"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        # create + failed poll + successful poll
+        assert mock_api_factory.call.call_count == 3
+        mock_print_output.assert_called_once_with(completed, "json", console=mock.ANY)

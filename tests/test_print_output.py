@@ -65,6 +65,29 @@ def test_print_output_jsonl(capsys):
     print_output(data, format_type="jsonl", console=console)
 
 
+def test_jsonl_long_records_not_wrapped(capsys):
+    """Each JSONL record must stay on one physical line so piped output stays valid."""
+    import json
+
+    data = [{"description": "x" * 500, "id": 1}, {"description": "y" * 500, "id": 2}]
+    print_output(data, format_type="jsonl", console=Console(width=80))
+
+    lines = [line for line in capsys.readouterr().out.splitlines() if line.strip()]
+    assert len(lines) == 2
+    for line in lines:
+        json.loads(line)  # raises if a record was split across lines
+
+
+def test_tsv_long_rows_not_wrapped(capsys):
+    """TSV header and rows must not be wrapped when piped (Console width 80)."""
+    data = [{"name": "a" * 300, "id": 1}, {"name": "b" * 300, "id": 2}]
+    print_output(data, format_type="tsv", console=Console(width=80))
+
+    lines = [line for line in capsys.readouterr().out.splitlines() if line.strip()]
+    assert len(lines) == 3  # header + 2 rows, none wrapped
+    assert lines[0].split("\t") == ["name", "id"]
+
+
 def test_select_table_fields_with_common_fields():
     """Test that _select_table_fields selects appropriate fields."""
     data = [{"id": 1, "name": "foo", "extra": "data"}, {"id": 2, "name": "bar", "extra": "more"}]

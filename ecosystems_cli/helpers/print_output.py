@@ -88,33 +88,37 @@ class TableFieldSelector:
                     break
 
 
+# Machine-readable formats use the builtin print() rather than console.print().
+# A Rich Console wraps long lines at its width (80 when stdout is not a TTY, i.e.
+# when piped), which would split a single record across physical lines and
+# corrupt JSON/JSONL/TSV consumers. Plain print() emits each record verbatim.
+
+
 def _format_json(data: Any, console: Console) -> None:
     """Format and print data as JSON."""
-    json_str = json.dumps(data, cls=DateTimeEncoder)
-    # Use plain print to avoid Rich formatting
-    print(json_str)
+    print(json.dumps(data, cls=DateTimeEncoder))
 
 
 def _format_tsv(data: Any, console: Console) -> None:
     """Format and print data as TSV (Tab-Separated Values)."""
     if isinstance(data, list) and len(data) > 0:
         headers = list(data[0].keys())
-        console.print("\t".join(headers))
+        print("\t".join(headers))
         for item in data:
-            console.print("\t".join(str(format_value(item.get(h, ""))) for h in headers))
+            print("\t".join(str(format_value(item.get(h, ""))) for h in headers))
     else:
         flat_data = flatten_dict(data) if isinstance(data, dict) else {"value": str(data)}
-        console.print("\t".join(flat_data.keys()))
-        console.print("\t".join(str(v) for v in flat_data.values()))
+        print("\t".join(flat_data.keys()))
+        print("\t".join(str(v) for v in flat_data.values()))
 
 
 def _format_jsonl(data: Any, console: Console) -> None:
     """Format and print data as JSONL (JSON Lines)."""
     if isinstance(data, list):
         for item in data:
-            console.print(json.dumps(item, cls=DateTimeEncoder))
+            print(json.dumps(item, cls=DateTimeEncoder))
     else:
-        console.print(json.dumps(data, cls=DateTimeEncoder))
+        print(json.dumps(data, cls=DateTimeEncoder))
 
 
 def _select_table_fields(headers: list[str]) -> list[str]:
