@@ -10,6 +10,8 @@ class ReposOperationHandler(OperationHandler):
         "topic": [("topic", ["topic"])],
         "getHost": [("hostName", ["hostname"])],
         "getHostOwners": [("hostName", ["hostname"])],
+        # Capital "HostName" is intentional: this op's spec path is
+        # /hosts/{HostName}/owners/lookup, unlike the lowercase {hostName} elsewhere.
         "lookupHostOwner": [("HostName", ["hostname"])],
         "getHostOwner": [("hostName", ["hostname"]), ("ownerLogin", ["ownerlogin"])],
         "getHostOwnerRepositories": [("hostName", ["hostname"]), ("ownerLogin", ["ownerlogin"])],

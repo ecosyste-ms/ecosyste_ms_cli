@@ -110,10 +110,13 @@ crashes. Remove the branch from both files, or implement it.
 
 ### Edge cases
 
-- **Non-dict list responses crash table/TSV output.** `print_output.py:104`
-  (`data[0].keys()`) and `:144` (`item.get(...)`) assume list items are dicts. A
-  response that is a JSON array of scalars raises `AttributeError`. JSON/JSONL
-  modes are fine; `table` (the default) and `tsv` are not.
+- ~~**Non-dict list responses crash table/TSV output.**~~ ✅ **FIXED** — both
+  `_format_tsv` and `_format_table` now detect when a list's items aren't all
+  dicts and render a single value column instead of calling `.keys()`/`.get()`
+  on a scalar. This was a **real default-format crash**, not just theoretical:
+  `packages get_registry_package_names` (and other name/keyword endpoints)
+  return a JSON array of strings, which raised `AttributeError` in the default
+  `table` mode. Covered by new tests in `test_print_output.py`.
 - **`_convert_dates` over-reaches** (`openapi_client.py:369-384`): it runs
   `strptime` against 3 formats on **every string in every response**. Two
   consequences — (1) any string that happens to be ISO-8601 (e.g. a version or
@@ -187,11 +190,14 @@ Overall posture is reasonable for an API client; no critical issues.
   parent-context check was dead code (Click shares the `ctx.obj` dict down the
   chain). Verified the full precedence chain (leaf > group > root > default)
   still holds for both `domain` and `timeout`.
-- **Copy-paste help text.** `sbom.py` and `licenses.py` both carry parser's
-  "Submit a dependency parsing job" help string — `sbom` isn't a parsing job.
-- `repos.py:13` `lookupHostOwner: [("HostName", ...)]` — the capital `H` is
-  **correct** (spec path is `/hosts/{HostName}/...`) but looks like a typo; a
-  one-line comment would stop someone "fixing" it.
+- ~~**Copy-paste help text.**~~ ✅ **DONE** — `sbom create_job` now reads
+  "Submit a job to generate an SBOM from a URL" and `licenses create_job`
+  "Submit a license detection job for a URL". (The generic wording actually came
+  from the upstream spec summaries, which are identical for all three job APIs;
+  `parser` keeps it since it genuinely is a dependency parser.)
+- ~~`lookupHostOwner: [("HostName", ...)]` looks like a typo.~~ ✅ **DONE** —
+  added a comment in `handlers/repos.py` noting the capital `HostName` matches
+  this op's spec path `/hosts/{HostName}/owners/lookup`.
 
 ---
 

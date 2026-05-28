@@ -88,6 +88,34 @@ def test_tsv_long_rows_not_wrapped(capsys):
     assert lines[0].split("\t") == ["name", "id"]
 
 
+def test_format_tsv_with_scalar_list(capsys):
+    """A list of scalars (e.g. package names) renders one value per line, not a crash."""
+    data = ["react-dom", "react-router-dom"]
+    print_output(data, format_type="tsv", console=Console(width=80))
+
+    lines = [line for line in capsys.readouterr().out.splitlines() if line.strip()]
+    assert lines == ["value", "react-dom", "react-router-dom"]
+
+
+def test_format_table_with_scalar_list(capsys):
+    """A list of scalars renders a single Value column rather than raising AttributeError."""
+    data = ["react-dom", "react-router-dom"]
+    print_output(data, format_type="table", console=Console(width=120))
+
+    out = capsys.readouterr().out
+    assert "Value" in out
+    assert "react-dom" in out
+    assert "react-router-dom" in out
+
+
+def test_format_table_with_scalar_list_does_not_raise():
+    """Direct _format_table call on a scalar list must not raise."""
+    from io import StringIO
+
+    console = Console(file=StringIO(), force_terminal=True, color_system=None, width=80)
+    _format_table([1, 2, 3], console)
+
+
 def test_select_table_fields_with_common_fields():
     """Test that _select_table_fields selects appropriate fields."""
     data = [{"id": 1, "name": "foo", "extra": "data"}, {"id": 2, "name": "bar", "extra": "more"}]

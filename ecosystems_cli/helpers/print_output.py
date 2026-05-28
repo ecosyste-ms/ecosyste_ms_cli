@@ -102,10 +102,17 @@ def _format_json(data: Any, console: Console) -> None:
 def _format_tsv(data: Any, console: Console) -> None:
     """Format and print data as TSV (Tab-Separated Values)."""
     if isinstance(data, list) and len(data) > 0:
-        headers = list(data[0].keys())
-        print("\t".join(headers))
-        for item in data:
-            print("\t".join(str(format_value(item.get(h, ""))) for h in headers))
+        if all(isinstance(item, dict) for item in data):
+            headers = list(data[0].keys())
+            print("\t".join(headers))
+            for item in data:
+                print("\t".join(str(format_value(item.get(h, ""))) for h in headers))
+        else:
+            # A list of scalars (e.g. package names) has no columns; emit one
+            # value per line under a single header.
+            print("value")
+            for item in data:
+                print(str(format_value(item)))
     else:
         flat_data = flatten_dict(data) if isinstance(data, dict) else {"value": str(data)}
         print("\t".join(flat_data.keys()))
@@ -131,7 +138,7 @@ def _format_table(data: Any, console: Console) -> None:
     """Format and print data as a rich table."""
     from rich.table import Table
 
-    if isinstance(data, list) and len(data) > 0:
+    if isinstance(data, list) and len(data) > 0 and all(isinstance(item, dict) for item in data):
         # Select fields to display
         headers = list(data[0].keys())
         selected_headers = _select_table_fields(headers)
@@ -144,6 +151,14 @@ def _format_table(data: Any, console: Console) -> None:
         for item in data:
             table.add_row(*[format_value(item.get(h, "")) for h in selected_headers])
 
+        console.print(table)
+    elif isinstance(data, list) and len(data) > 0:
+        # A list of scalars (e.g. package names) has no columns; render each
+        # value in a single column instead of assuming dict-shaped rows.
+        table = Table(title=DEFAULT_TABLE_TITLE, show_header=True, header_style=TABLE_HEADER_STYLE)
+        table.add_column("Value")
+        for item in data:
+            table.add_row(format_value(item))
         console.print(table)
     elif isinstance(data, dict):
         # Create a key-value table for dict data

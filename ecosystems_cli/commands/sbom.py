@@ -13,7 +13,7 @@ from ecosystems_cli.helpers.job_polling import submit_and_poll
 sbom = APICommandGenerator.create_api_group("sbom")
 
 
-@override_auto_command(sbom, "create_job", help="Submit a dependency parsing job")
+@override_auto_command(sbom, "create_job", help="Submit a job to generate an SBOM from a URL")
 @click.argument("url", required=True)
 @click.option(
     "--polling-interval",
@@ -39,7 +39,7 @@ def create_job(
     polling_interval: Optional[float],
     max_wait: float,
 ):
-    """Submit a dependency parsing job.
+    """Submit a job to generate an SBOM (Software Bill of Materials) from a URL.
 
     Args:
         ctx: Click context
