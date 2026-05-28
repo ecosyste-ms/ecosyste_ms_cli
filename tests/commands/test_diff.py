@@ -16,8 +16,8 @@ class TestDiffCommands:
 
         self.diff_group = diff
 
-    @mock.patch("ecosystems_cli.commands.diff.api_factory")
-    @mock.patch("ecosystems_cli.commands.diff.print_output")
+    @mock.patch("ecosystems_cli.helpers.job_polling.api_factory")
+    @mock.patch("ecosystems_cli.helpers.job_polling.print_output")
     def test_create_job(self, mock_print_output, mock_api_factory):
         """Test creating a diff job."""
         mock_api_factory.call.return_value = {
@@ -44,8 +44,8 @@ class TestDiffCommands:
         )
         mock_print_output.assert_called_once()
 
-    @mock.patch("ecosystems_cli.commands.diff.api_factory")
-    @mock.patch("ecosystems_cli.commands.diff.print_output")
+    @mock.patch("ecosystems_cli.helpers.job_polling.api_factory")
+    @mock.patch("ecosystems_cli.helpers.job_polling.print_output")
     def test_get_job_parameter_mapping(self, mock_print_output, mock_api_factory):
         """Test that job_id parameter is correctly mapped to jobID key."""
         # We need to test the handler directly
@@ -58,9 +58,9 @@ class TestDiffCommands:
         assert path_params == {"jobID": "test-job-456"}
         assert query_params == {}
 
-    @mock.patch("ecosystems_cli.commands.diff.api_factory")
-    @mock.patch("ecosystems_cli.commands.diff.print_output")
-    @mock.patch("ecosystems_cli.commands.diff.time.sleep")
+    @mock.patch("ecosystems_cli.helpers.job_polling.api_factory")
+    @mock.patch("ecosystems_cli.helpers.job_polling.print_output")
+    @mock.patch("ecosystems_cli.helpers.job_polling.time.sleep")
     def test_create_job_with_polling(self, mock_sleep, mock_print_output, mock_api_factory):
         """Test creating a diff job with polling enabled."""
         # Mock the initial create_job response
@@ -112,9 +112,9 @@ class TestDiffCommands:
         # Verify output was printed with the final result
         mock_print_output.assert_called_once_with(get_response, "json", console=mock.ANY)
 
-    @mock.patch("ecosystems_cli.commands.diff.api_factory")
-    @mock.patch("ecosystems_cli.commands.diff.print_output")
-    @mock.patch("ecosystems_cli.commands.diff.time.sleep")
+    @mock.patch("ecosystems_cli.helpers.job_polling.api_factory")
+    @mock.patch("ecosystems_cli.helpers.job_polling.print_output")
+    @mock.patch("ecosystems_cli.helpers.job_polling.time.sleep")
     def test_create_job_with_polling_multiple_status_checks(self, mock_sleep, mock_print_output, mock_api_factory):
         """Test creating a diff job with polling that requires multiple status checks."""
         # Mock the initial create_job response
@@ -159,8 +159,8 @@ class TestDiffCommands:
         # Verify output was printed with the final result
         mock_print_output.assert_called_once_with(get_response_3, "json", console=mock.ANY)
 
-    @mock.patch("ecosystems_cli.commands.diff.api_factory")
-    @mock.patch("ecosystems_cli.commands.diff.print_error")
+    @mock.patch("ecosystems_cli.helpers.job_polling.api_factory")
+    @mock.patch("ecosystems_cli.helpers.job_polling.print_error")
     def test_create_job_error(self, mock_print_error, mock_api_factory):
         """Test error handling when creating a job."""
         mock_api_factory.call.side_effect = Exception("Invalid URL")
@@ -174,9 +174,9 @@ class TestDiffCommands:
         assert result.exit_code == 0
         mock_print_error.assert_called_once_with("Unexpected error: Invalid URL", console=mock.ANY)
 
-    @mock.patch("ecosystems_cli.commands.diff.api_factory")
-    @mock.patch("ecosystems_cli.commands.diff.print_output")
-    @mock.patch("ecosystems_cli.commands.diff.print_error")
+    @mock.patch("ecosystems_cli.helpers.job_polling.api_factory")
+    @mock.patch("ecosystems_cli.helpers.job_polling.print_output")
+    @mock.patch("ecosystems_cli.helpers.job_polling.print_error")
     def test_create_job_with_polling_no_job_id(self, mock_print_error, mock_print_output, mock_api_factory):
         """Test creating a diff job with polling when no job ID is returned."""
         # Mock a response without job ID or location

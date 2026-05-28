@@ -16,8 +16,8 @@ class TestSbomCommands:
 
         self.sbom_group = sbom
 
-    @mock.patch("ecosystems_cli.commands.sbom.api_factory")
-    @mock.patch("ecosystems_cli.commands.sbom.print_output")
+    @mock.patch("ecosystems_cli.helpers.job_polling.api_factory")
+    @mock.patch("ecosystems_cli.helpers.job_polling.print_output")
     def test_create_job(self, mock_print_output, mock_api_factory):
         """Test creating a sbom parsing job."""
         mock_api_factory.call.return_value = {
@@ -42,8 +42,8 @@ class TestSbomCommands:
         )
         mock_print_output.assert_called_once()
 
-    @mock.patch("ecosystems_cli.commands.sbom.api_factory")
-    @mock.patch("ecosystems_cli.commands.sbom.print_output")
+    @mock.patch("ecosystems_cli.helpers.job_polling.api_factory")
+    @mock.patch("ecosystems_cli.helpers.job_polling.print_output")
     def test_get_job_parameter_mapping(self, mock_print_output, mock_api_factory):
         """Test that job_id parameter is correctly mapped to jobID key."""
         # Mock the create_job response first
@@ -63,9 +63,9 @@ class TestSbomCommands:
         assert path_params == {"jobID": "test-job-456"}
         assert query_params == {}
 
-    @mock.patch("ecosystems_cli.commands.sbom.api_factory")
-    @mock.patch("ecosystems_cli.commands.sbom.print_output")
-    @mock.patch("ecosystems_cli.commands.sbom.time.sleep")
+    @mock.patch("ecosystems_cli.helpers.job_polling.api_factory")
+    @mock.patch("ecosystems_cli.helpers.job_polling.print_output")
+    @mock.patch("ecosystems_cli.helpers.job_polling.time.sleep")
     def test_create_job_with_polling(self, mock_sleep, mock_print_output, mock_api_factory):
         """Test creating a sbom parsing job with polling enabled."""
         # Mock the initial create_job response
@@ -104,8 +104,8 @@ class TestSbomCommands:
         # Verify output was printed with the final result
         mock_print_output.assert_called_once_with(get_response, "json", console=mock.ANY)
 
-    @mock.patch("ecosystems_cli.commands.sbom.api_factory")
-    @mock.patch("ecosystems_cli.commands.sbom.print_error")
+    @mock.patch("ecosystems_cli.helpers.job_polling.api_factory")
+    @mock.patch("ecosystems_cli.helpers.job_polling.print_error")
     def test_create_job_error(self, mock_print_error, mock_api_factory):
         """Test error handling when creating a job."""
         mock_api_factory.call.side_effect = Exception("Invalid URL")
@@ -115,9 +115,9 @@ class TestSbomCommands:
         assert result.exit_code == 0
         mock_print_error.assert_called_once_with("Unexpected error: Invalid URL", console=mock.ANY)
 
-    @mock.patch("ecosystems_cli.commands.sbom.api_factory")
-    @mock.patch("ecosystems_cli.commands.sbom.print_output")
-    @mock.patch("ecosystems_cli.commands.sbom.time.sleep")
+    @mock.patch("ecosystems_cli.helpers.job_polling.api_factory")
+    @mock.patch("ecosystems_cli.helpers.job_polling.print_output")
+    @mock.patch("ecosystems_cli.helpers.job_polling.time.sleep")
     def test_create_job_with_polling_multiple_status_checks(self, mock_sleep, mock_print_output, mock_api_factory):
         """Test creating a job with polling that checks status multiple times."""
         # Mock the initial create_job response
@@ -152,9 +152,9 @@ class TestSbomCommands:
         # Verify output was printed with the final result
         mock_print_output.assert_called_once_with(get_response_3, "json", console=mock.ANY)
 
-    @mock.patch("ecosystems_cli.commands.sbom.api_factory")
-    @mock.patch("ecosystems_cli.commands.sbom.print_output")
-    @mock.patch("ecosystems_cli.commands.sbom.print_error")
+    @mock.patch("ecosystems_cli.helpers.job_polling.api_factory")
+    @mock.patch("ecosystems_cli.helpers.job_polling.print_output")
+    @mock.patch("ecosystems_cli.helpers.job_polling.print_error")
     def test_create_job_with_polling_no_job_id(self, mock_print_error, mock_print_output, mock_api_factory):
         """Test polling behavior when no job ID is available."""
         # Mock response with no ID or location
