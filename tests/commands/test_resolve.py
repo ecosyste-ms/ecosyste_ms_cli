@@ -161,8 +161,8 @@ class TestResolveCommands:
         # Verify we made 4 API calls total (1 create + 3 status checks)
         assert mock_api_factory.call.call_count == 4
 
-        # Verify sleep was called 3 times (once before each status check)
-        assert mock_sleep.call_count == 3
+        # Sleep happens between checks, not before the first or after the terminal one.
+        assert mock_sleep.call_count == 2
         mock_sleep.assert_called_with(0.5)
 
         # Verify output was printed with the final result

@@ -153,8 +153,8 @@ class TestDiffCommands:
         # Verify create_job was called once
         assert mock_api_factory.call.call_count == 4
 
-        # Verify sleep was called 3 times (once before each get_job call)
-        assert mock_sleep.call_count == 3
+        # Sleep happens between checks, not before the first or after the terminal one.
+        assert mock_sleep.call_count == 2
 
         # Verify output was printed with the final result
         mock_print_output.assert_called_once_with(get_response_3, "json", console=mock.ANY)
@@ -247,4 +247,25 @@ class TestDiffCommands:
         assert result.exit_code == 0
         # create + failed poll + successful poll
         assert mock_api_factory.call.call_count == 3
+        mock_print_output.assert_called_once_with(completed, "json", console=mock.ANY)
+
+    @mock.patch("ecosystems_cli.helpers.job_polling.api_factory")
+    @mock.patch("ecosystems_cli.helpers.job_polling.print_output")
+    @mock.patch("ecosystems_cli.helpers.job_polling.time.sleep")
+    def test_polling_returns_immediately_when_already_terminal(self, mock_sleep, mock_print_output, mock_api_factory):
+        """A job that is already complete on the first check must not wait out an interval."""
+        create_response = {"id": "j2", "status": "pending", "location": "https://diff.ecosyste.ms/api/v1/jobs/j2"}
+        completed = {"id": "j2", "status": "completed", "results": {}}
+        mock_api_factory.call.side_effect = [create_response, completed]
+
+        result = self.runner.invoke(
+            self.diff_group,
+            ["create_job", "url1", "url2", "--polling-interval", "1"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        # create + one status check, and no sleep before that first check.
+        assert mock_api_factory.call.call_count == 2
+        mock_sleep.assert_not_called()
         mock_print_output.assert_called_once_with(completed, "json", console=mock.ANY)

@@ -128,9 +128,13 @@ crashes. Remove the branch from both files, or implement it.
   never converted), so the false-positive surface was already minimal; fully
   eliminating it would require date-field-name knowledge the responses don't
   reliably provide, so the gate is the pragmatic fix.
-- **Polling always sleeps before the first status check** (`job_polling.py:103`).
-  A job that finishes instantly still costs one `polling_interval`. Minor, but
-  an initial check-then-sleep would be friendlier.
+- ~~**Polling always sleeps before the first status check.**~~ ✅ **FIXED** —
+  the loop is now check-then-sleep: the first `getJob` runs immediately, and the
+  sleep moved to the end of the loop body, so a job that's already terminal (or
+  reaches the deadline) returns without a trailing wait. A poll that needs 3
+  checks now sleeps twice (between checks) instead of three times. Verified by a
+  new "returns immediately when already terminal" test; the 4 existing
+  multiple-check tests were updated from 3 → 2 expected sleeps.
 - **MCP `name.endswith("_call")`** (`mcp_server.py:114`) is a brittle way to
   distinguish the generic tool from per-operation tools. Safe today (no
   operationId collides), but it would silently misroute if one ever ends in

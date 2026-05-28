@@ -99,9 +99,9 @@ def submit_and_poll(
         last_response = result
         consecutive_errors = 0
 
+        # Check first, then sleep: a job that is already terminal returns
+        # immediately instead of waiting out one polling_interval.
         while True:
-            time.sleep(polling_interval)
-
             try:
                 job_status = api_factory.call(
                     api_name,
@@ -140,6 +140,8 @@ def submit_and_poll(
                 )
                 print_output(last_response, output_format, console=console)
                 return
+
+            time.sleep(polling_interval)
 
     except EcosystemsCLIError as e:
         print_error(str(e), console=console)
