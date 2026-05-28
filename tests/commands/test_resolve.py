@@ -16,8 +16,8 @@ class TestResolveCommands:
 
         self.resolve_group = resolve
 
-    @mock.patch("ecosystems_cli.commands.resolve.api_factory")
-    @mock.patch("ecosystems_cli.commands.resolve.print_output")
+    @mock.patch("ecosystems_cli.helpers.job_polling.api_factory")
+    @mock.patch("ecosystems_cli.helpers.job_polling.print_output")
     def test_create_job_basic(self, mock_print_output, mock_api_factory):
         """Test creating a resolve job without polling."""
         mock_api_factory.call.return_value = {
@@ -40,8 +40,8 @@ class TestResolveCommands:
         )
         mock_print_output.assert_called_once()
 
-    @mock.patch("ecosystems_cli.commands.resolve.api_factory")
-    @mock.patch("ecosystems_cli.commands.resolve.print_output")
+    @mock.patch("ecosystems_cli.helpers.job_polling.api_factory")
+    @mock.patch("ecosystems_cli.helpers.job_polling.print_output")
     def test_create_job_with_optional_params(self, mock_print_output, mock_api_factory):
         """Test creating a resolve job with version and before parameters."""
         mock_api_factory.call.return_value = {
@@ -68,9 +68,7 @@ class TestResolveCommands:
         )
         mock_print_output.assert_called_once()
 
-    @mock.patch("ecosystems_cli.commands.resolve.api_factory")
-    @mock.patch("ecosystems_cli.commands.resolve.print_output")
-    def test_get_job_parameter_mapping(self, mock_print_output, mock_api_factory):
+    def test_get_job_parameter_mapping(self):
         """Test that job_id parameter is correctly mapped to jobID key."""
         from ecosystems_cli.commands.handlers import OperationHandlerFactory
 
@@ -81,9 +79,9 @@ class TestResolveCommands:
         assert path_params == {"jobID": "test-resolve-789"}
         assert query_params == {}
 
-    @mock.patch("ecosystems_cli.commands.resolve.api_factory")
-    @mock.patch("ecosystems_cli.commands.resolve.print_output")
-    @mock.patch("ecosystems_cli.commands.resolve.time.sleep")
+    @mock.patch("ecosystems_cli.helpers.job_polling.api_factory")
+    @mock.patch("ecosystems_cli.helpers.job_polling.print_output")
+    @mock.patch("ecosystems_cli.helpers.job_polling.time.sleep")
     def test_create_job_with_polling_immediate_completion(self, mock_sleep, mock_print_output, mock_api_factory):
         """Test creating a resolve job with polling when job completes immediately."""
         # Mock the initial create_job response
@@ -128,9 +126,9 @@ class TestResolveCommands:
         # Verify output was printed with the final result
         mock_print_output.assert_called_once_with(get_response, "json", console=mock.ANY)
 
-    @mock.patch("ecosystems_cli.commands.resolve.api_factory")
-    @mock.patch("ecosystems_cli.commands.resolve.print_output")
-    @mock.patch("ecosystems_cli.commands.resolve.time.sleep")
+    @mock.patch("ecosystems_cli.helpers.job_polling.api_factory")
+    @mock.patch("ecosystems_cli.helpers.job_polling.print_output")
+    @mock.patch("ecosystems_cli.helpers.job_polling.time.sleep")
     def test_create_job_with_polling_multiple_iterations(self, mock_sleep, mock_print_output, mock_api_factory):
         """Test creating a resolve job with polling through multiple status checks."""
         # Mock the initial create_job response
@@ -163,16 +161,16 @@ class TestResolveCommands:
         # Verify we made 4 API calls total (1 create + 3 status checks)
         assert mock_api_factory.call.call_count == 4
 
-        # Verify sleep was called 3 times (once before each status check)
-        assert mock_sleep.call_count == 3
+        # Sleep happens between checks, not before the first or after the terminal one.
+        assert mock_sleep.call_count == 2
         mock_sleep.assert_called_with(0.5)
 
         # Verify output was printed with the final result
         mock_print_output.assert_called_once_with(completed_response, "json", console=mock.ANY)
 
-    @mock.patch("ecosystems_cli.commands.resolve.api_factory")
-    @mock.patch("ecosystems_cli.commands.resolve.print_output")
-    @mock.patch("ecosystems_cli.commands.resolve.time.sleep")
+    @mock.patch("ecosystems_cli.helpers.job_polling.api_factory")
+    @mock.patch("ecosystems_cli.helpers.job_polling.print_output")
+    @mock.patch("ecosystems_cli.helpers.job_polling.time.sleep")
     def test_create_job_polling_with_location_job_id(self, mock_sleep, mock_print_output, mock_api_factory):
         """Test that job ID is correctly extracted from location URL when not in response."""
         # Mock response without direct 'id' field, only location
@@ -201,9 +199,9 @@ class TestResolveCommands:
         second_call = mock_api_factory.call.call_args_list[1]
         assert second_call[1]["path_params"] == {"jobID": "extracted-job-303"}
 
-    @mock.patch("ecosystems_cli.commands.resolve.api_factory")
-    @mock.patch("ecosystems_cli.commands.resolve.print_error")
-    @mock.patch("ecosystems_cli.commands.resolve.print_output")
+    @mock.patch("ecosystems_cli.helpers.job_polling.api_factory")
+    @mock.patch("ecosystems_cli.helpers.job_polling.print_error")
+    @mock.patch("ecosystems_cli.helpers.job_polling.print_output")
     def test_create_job_polling_no_job_id(self, mock_print_output, mock_print_error, mock_api_factory):
         """Test error handling when polling is requested but no job ID is available."""
         # Mock response with no 'id' and no 'location'
@@ -224,9 +222,9 @@ class TestResolveCommands:
         # Verify the response was still printed
         mock_print_output.assert_called_once_with(create_response, "json", console=mock.ANY)
 
-    @mock.patch("ecosystems_cli.commands.resolve.api_factory")
-    @mock.patch("ecosystems_cli.commands.resolve.print_output")
-    @mock.patch("ecosystems_cli.commands.resolve.time.sleep")
+    @mock.patch("ecosystems_cli.helpers.job_polling.api_factory")
+    @mock.patch("ecosystems_cli.helpers.job_polling.print_output")
+    @mock.patch("ecosystems_cli.helpers.job_polling.time.sleep")
     def test_create_job_polling_with_failed_status(self, mock_sleep, mock_print_output, mock_api_factory):
         """Test that polling stops when job status is 'failed'."""
         create_response = {
@@ -250,8 +248,8 @@ class TestResolveCommands:
         assert mock_api_factory.call.call_count == 2
         mock_print_output.assert_called_once_with(failed_response, "json", console=mock.ANY)
 
-    @mock.patch("ecosystems_cli.commands.resolve.api_factory")
-    @mock.patch("ecosystems_cli.commands.resolve.print_error")
+    @mock.patch("ecosystems_cli.helpers.job_polling.api_factory")
+    @mock.patch("ecosystems_cli.helpers.job_polling.print_error")
     def test_create_job_error_handling(self, mock_print_error, mock_api_factory):
         """Test error handling when creating a job fails."""
         mock_api_factory.call.side_effect = Exception("Network error")
@@ -261,8 +259,8 @@ class TestResolveCommands:
         assert result.exit_code == 0
         mock_print_error.assert_called_once_with("Unexpected error: Network error", console=mock.ANY)
 
-    @mock.patch("ecosystems_cli.commands.resolve.api_factory")
-    @mock.patch("ecosystems_cli.commands.resolve.print_error")
+    @mock.patch("ecosystems_cli.helpers.job_polling.api_factory")
+    @mock.patch("ecosystems_cli.helpers.job_polling.print_error")
     def test_create_job_ecosystems_error(self, mock_print_error, mock_api_factory):
         """Test error handling for EcosystemsCLIError."""
         from ecosystems_cli.exceptions import EcosystemsCLIError

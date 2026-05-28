@@ -5,9 +5,8 @@ from typing import List
 
 import click
 
-from ecosystems_cli.commands.decorators import common_options, resolve_context_value
-from ecosystems_cli.constants import DEFAULT_OUTPUT_FORMAT, DEFAULT_TIMEOUT
-from ecosystems_cli.helpers.click_params import build_click_decorators
+from ecosystems_cli.commands.decorators import common_options
+from ecosystems_cli.helpers.click_params import build_body_decorators, build_click_decorators
 from ecosystems_cli.helpers.load_api_spec import load_api_spec
 
 
@@ -40,17 +39,11 @@ class APICommandGenerator:
         @click.pass_context
         def api_group(ctx, timeout, format, domain, mailto):
             f"""Commands for the {api_name} API."""
-            ctx.ensure_object(dict)
+            from ecosystems_cli.commands.execution import update_context
 
-            timeout = resolve_context_value(ctx, "timeout", timeout, DEFAULT_TIMEOUT)
-            format = resolve_context_value(ctx, "format", format, DEFAULT_OUTPUT_FORMAT)
-            domain = resolve_context_value(ctx, "domain", domain, None)
-            mailto = resolve_context_value(ctx, "mailto", mailto, None)
-
-            ctx.obj["timeout"] = timeout
-            ctx.obj["format"] = format
-            ctx.obj["domain"] = domain
-            ctx.obj["mailto"] = mailto
+            # Same merge rule as leaf commands: a value set at this level wins;
+            # otherwise the value inherited from the parent context is kept.
+            update_context(ctx, timeout, format, domain, mailto)
 
         api_group.name = api_name
         return api_group
@@ -70,12 +63,13 @@ class APICommandGenerator:
                     command_name = APICommandGenerator.operation_id_to_command_name(operation_id)
                     description = operation.get("summary", f"Execute {operation_id}")
                     parameters = operation.get("parameters", [])
+                    request_body = operation.get("requestBody")
 
-                    if not parameters:
+                    if not parameters and not request_body:
                         APICommandGenerator._create_simple_command(api_group, command_name, description, api_name, operation_id)
                     else:
                         APICommandGenerator._create_parameterized_command(
-                            api_group, command_name, description, api_name, operation_id, parameters
+                            api_group, command_name, description, api_name, operation_id, parameters, request_body
                         )
 
     @staticmethod
@@ -90,12 +84,22 @@ class APICommandGenerator:
 
     @staticmethod
     def _create_parameterized_command(
-        api_group: click.Group, command_name: str, description: str, api_name: str, operation_id: str, parameters: List[dict]
+        api_group: click.Group,
+        command_name: str,
+        description: str,
+        api_name: str,
+        operation_id: str,
+        parameters: List[dict],
+        request_body: dict = None,
     ):
-        """Create a command with parameters."""
+        """Create a command with parameters and/or a JSON request body."""
         click_decorators = APICommandGenerator._build_click_decorators(parameters)
+        body_params: List[str] = []
+        if request_body:
+            body_decorators, body_params = build_body_decorators(request_body)
+            click_decorators = click_decorators + body_decorators
 
-        def make_command(op_id):
+        def make_command(op_id, body_keys):
             @api_group.command(name=command_name, help=description)
             @common_options
             @click.pass_context
@@ -103,14 +107,14 @@ class APICommandGenerator:
                 from ecosystems_cli.commands.execution import execute_api_call, update_context
 
                 update_context(ctx, timeout, format, domain, mailto)
-                execute_api_call(ctx, api_name, operation_id=op_id, call_args=args, call_kwargs=kwargs)
+                execute_api_call(ctx, api_name, operation_id=op_id, call_args=args, call_kwargs=kwargs, body_keys=body_keys)
 
             for decorator in reversed(click_decorators):
                 command_impl = decorator(command_impl)
 
             return command_impl
 
-        make_command(operation_id)
+        make_command(operation_id, body_params)
 
     @staticmethod
     def create_api_group(api_name: str) -> click.Group:

@@ -5,6 +5,9 @@ API_BASE_URL_TEMPLATE = "https://{api_name}.ecosyste.ms/api/v1"
 DEFAULT_TIMEOUT = 20
 DEFAULT_CONTENT_TYPE = "application/json"
 
+# Job polling: wall-clock ceiling (seconds) so a stuck job can't hang the CLI forever.
+DEFAULT_MAX_POLL_WAIT = 600
+
 # Supported APIs
 SUPPORTED_APIS = [
     "advisories",

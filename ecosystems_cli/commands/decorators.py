@@ -1,7 +1,6 @@
 """Decorators for ecosystems CLI commands."""
 
 from functools import wraps
-from typing import Optional
 
 import click
 
@@ -38,13 +37,29 @@ def common_options(f):
     return f
 
 
-def api_command(api_name: str, operation_id: Optional[str] = None, method_name: Optional[str] = None):
-    """Decorator that wraps commands with API execution logic.
+def override_auto_command(group: click.Group, name: str, **command_kwargs):
+    """Register a custom command in place of an auto-generated one.
+
+    Drops any command already registered on ``group`` under ``name`` (the
+    auto-generated version), then registers the decorated function via
+    ``group.command(name=name, **command_kwargs)``. Use this as the outermost
+    decorator instead of a bare ``del group.commands[name]`` followed by
+    ``@group.command(name=name, ...)``.
+    """
+
+    def decorator(func):
+        group.commands.pop(name, None)
+        return group.command(name=name, **command_kwargs)(func)
+
+    return decorator
+
+
+def api_command(api_name: str, operation_id: str):
+    """Decorator that wraps a command to execute an API operation.
 
     Args:
         api_name: Name of the API (e.g., 'repos', 'packages')
-        operation_id: Optional operation ID for 'call' method
-        method_name: Optional API client method name for direct calls
+        operation_id: Operation ID to execute
     """
 
     def decorator(func):
@@ -54,48 +69,9 @@ def api_command(api_name: str, operation_id: Optional[str] = None, method_name: 
         def wrapper(ctx, timeout, format, domain, mailto, *args, **kwargs):
             from ecosystems_cli.commands.execution import execute_api_call, update_context
 
-            # Update context with command-level options
             update_context(ctx, timeout, format, domain, mailto)
-
-            # Execute API call
-            if operation_id:
-                execute_api_call(ctx, api_name, operation_id=operation_id, call_args=args, call_kwargs=kwargs)
-            elif method_name:
-                execute_api_call(ctx, api_name, method_name=method_name, call_kwargs=kwargs)
-            else:
-                # If neither is specified, assume the function will handle it
-                func(ctx, *args, **kwargs)
+            execute_api_call(ctx, api_name, operation_id=operation_id, call_args=args, call_kwargs=kwargs)
 
         return wrapper
 
     return decorator
-
-
-def resolve_context_value(ctx, key, current_value, default_value):
-    """Helper to resolve context values with inheritance.
-
-    Args:
-        ctx: Click context
-        key: Context key to resolve
-        current_value: Current value from command options
-        default_value: Default value for comparison
-
-    Returns:
-        Resolved value considering context inheritance
-    """
-    # If current value is not default, use it
-    if current_value != default_value:
-        return current_value
-
-    # Check current context for existing value
-    if ctx.obj and key in ctx.obj:
-        return ctx.obj[key]
-
-    # Check parent context
-    if ctx.parent and ctx.parent.obj:
-        parent_value = ctx.parent.obj.get(key, default_value)
-        if parent_value != default_value:
-            return parent_value
-
-    # Return current value (which is the default)
-    return current_value

@@ -196,8 +196,8 @@ class TestReposCommands:
             self.repos_group,
             [
                 "usage_package_dependent_repositories",
-                "express",
                 "npm",
+                "express",
                 "--page",
                 "1",
                 "--per-page",
@@ -232,8 +232,8 @@ class TestReposCommands:
             self.repos_group,
             [
                 "usage_package_dependent_repositories",
-                "express",
                 "npm",
+                "express",
                 "--min-stars",
                 "100",
             ],
@@ -312,7 +312,7 @@ class TestReposCommands:
 
         result = self.runner.invoke(
             self.repos_group,
-            ["usage_package_dependencies", "express", "npm", "--page", "1", "--per-page", "10"],
+            ["usage_package_dependencies", "npm", "express", "--page", "1", "--per-page", "10"],
             obj={"timeout": 20, "format": "json"},
         )
 
@@ -443,7 +443,7 @@ class TestReposCommands:
 
         result = self.runner.invoke(
             self.repos_group,
-            ["usage_package", "--purl", "pkg:npm/lodash", "django", "pypi"],
+            ["usage_package", "--purl", "pkg:npm/lodash", "pypi", "django"],
             obj={"timeout": 20, "format": "json"},
         )
 

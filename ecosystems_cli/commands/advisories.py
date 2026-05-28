@@ -4,20 +4,16 @@ from typing import Optional
 
 import click
 
-from ecosystems_cli.commands.decorators import common_options
+from ecosystems_cli.commands.decorators import common_options, override_auto_command
 from ecosystems_cli.commands.execution import execute_api_call, update_context
 from ecosystems_cli.commands.generator import APICommandGenerator
-from ecosystems_cli.helpers.purl_parser import parse_purl
+from ecosystems_cli.helpers.build_kwargs import build_kwargs
+from ecosystems_cli.helpers.purl_parser import apply_purl
 
 advisories = APICommandGenerator.create_api_group("advisories")
 
 
-# Remove auto-generated get_advisories command to replace with custom implementation
-if "get_advisories" in advisories.commands:
-    del advisories.commands["get_advisories"]
-
-
-@advisories.command(name="get_advisories", help="list advisories")
+@override_auto_command(advisories, "get_advisories", help="list advisories")
 @click.option("--purl", type=str, default=None, help="Package URL (PURL). Example: pkg:npm/fsa")
 @click.option("--ecosystem", type=str, default=None, help="Ecosystem to filter by")
 @click.option("--package-name", type=str, default=None, help="Package to filter by")
@@ -73,39 +69,24 @@ def get_advisories(
     """
     update_context(ctx, timeout, format, domain, mailto)
 
-    # If PURL is provided, decompose it; explicit flags win over PURL-derived values.
-    if purl:
-        parsed_ecosystem, parsed_package_name = parse_purl(purl)
-        if not parsed_ecosystem and not parsed_package_name:
-            raise click.UsageError(f"Invalid PURL: {purl!r}. Expected format: pkg:type/name (e.g. pkg:npm/axios).")
-        if parsed_ecosystem and not ecosystem:
-            ecosystem = parsed_ecosystem
-        if parsed_package_name and not package_name:
-            package_name = parsed_package_name
+    # Explicit flags win over PURL-derived values.
+    parsed = apply_purl(purl)
+    ecosystem = ecosystem or parsed.get("ecosystem")
+    package_name = package_name or parsed.get("package_name")
 
     # Build kwargs for the API call
-    kwargs = {}
-    if ecosystem is not None:
-        kwargs["ecosystem"] = ecosystem
-    if package_name is not None:
-        kwargs["package_name"] = package_name
-    if severity is not None:
-        kwargs["severity"] = severity
-    if repository_url is not None:
-        kwargs["repository_url"] = repository_url
-    if page is not None:
-        kwargs["page"] = page
-    if per_page is not None:
-        kwargs["per_page"] = per_page
-    if created_after is not None:
-        kwargs["created_after"] = created_after
-    if updated_after is not None:
-        kwargs["updated_after"] = updated_after
-    if sort is not None:
-        kwargs["sort"] = sort
-    if order is not None:
-        kwargs["order"] = order
-    if source is not None:
-        kwargs["source"] = source
+    kwargs = build_kwargs(
+        ecosystem=ecosystem,
+        package_name=package_name,
+        severity=severity,
+        repository_url=repository_url,
+        page=page,
+        per_page=per_page,
+        created_after=created_after,
+        updated_after=updated_after,
+        sort=sort,
+        order=order,
+        source=source,
+    )
 
     execute_api_call(ctx, "advisories", operation_id="getAdvisories", call_args=(), call_kwargs=kwargs)

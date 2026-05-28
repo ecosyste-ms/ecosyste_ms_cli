@@ -3,6 +3,7 @@
 This module provides a client implementation using openapi-core for OpenAPI v3 specs.
 """
 
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -35,6 +36,13 @@ from ecosystems_cli.exceptions import (
     InvalidAPIError,
     InvalidOperationError,
 )
+
+# Datetime parsing. The regex is a cheap gate so strptime (and its exception
+# handling) runs only on datetime-shaped strings rather than every string in a
+# response. It is intentionally a superset of the formats below -- non-matching
+# strings (names, URLs, version numbers, free text) are returned untouched.
+_ISO_DATETIME_RE = re.compile(r"^\d{4}-\d{1,2}-\d{1,2}T\d{1,2}:\d{1,2}:\d{1,2}(?:\.\d+)?Z?$")
+_DATETIME_FORMATS = ("%Y-%m-%dT%H:%M:%S.%fZ", "%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%dT%H:%M:%S")
 
 
 class OpenAPIClientFactory:
@@ -367,14 +375,18 @@ class OpenAPIClientFactory:
             return {"result": response.text}
 
     def _convert_dates(self, obj: Any) -> Any:
-        """Convert date strings to datetime objects recursively."""
+        """Convert ISO-8601 datetime strings to datetime objects recursively."""
         if isinstance(obj, dict):
             return {k: self._convert_dates(v) for k, v in obj.items()}
         elif isinstance(obj, list):
             return [self._convert_dates(item) for item in obj]
         elif isinstance(obj, str):
-            # Try to parse as datetime
-            for fmt in ["%Y-%m-%dT%H:%M:%S.%fZ", "%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%dT%H:%M:%S"]:
+            # Cheap reject: skip strptime entirely unless the string is shaped
+            # like an ISO-8601 datetime (date-only strings and versions fall
+            # through here and are returned as-is).
+            if not _ISO_DATETIME_RE.match(obj):
+                return obj
+            for fmt in _DATETIME_FORMATS:
                 try:
                     return datetime.strptime(obj, fmt)
                 except ValueError:
