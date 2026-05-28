@@ -117,13 +117,17 @@ crashes. Remove the branch from both files, or implement it.
   `packages get_registry_package_names` (and other name/keyword endpoints)
   return a JSON array of strings, which raised `AttributeError` in the default
   `table` mode. Covered by new tests in `test_print_output.py`.
-- **`_convert_dates` over-reaches** (`openapi_client.py:369-384`): it runs
-  `strptime` against 3 formats on **every string in every response**. Two
-  consequences — (1) any string that happens to be ISO-8601 (e.g. a version or
-  a free-text field) is silently coerced to a `datetime`, changing the type seen
-  by `json`/`jsonl` consumers; (2) it's exception-driven control flow over the
-  whole payload, i.e. measurable overhead on large responses. Consider
-  converting only known date fields, or gating by a cheap regex prefix-check.
+- ~~**`_convert_dates` over-reaches.**~~ ✅ **FIXED** — added a cheap compiled
+  regex gate (`_ISO_DATETIME_RE`) so `strptime` (and its exception handling)
+  runs only on datetime-shaped strings instead of every string in the payload,
+  eliminating consequence (2). The gate is a superset of the parse formats, so
+  conversion behavior is unchanged; non-datetime strings (names, URLs, versions,
+  free text) are returned untouched. Covered by `TestConvertDates` in
+  `test_openapi_client.py`. Note on consequence (1): the existing formats only
+  ever matched full `T`-separated timestamps (date-only/version strings were
+  never converted), so the false-positive surface was already minimal; fully
+  eliminating it would require date-field-name knowledge the responses don't
+  reliably provide, so the gate is the pragmatic fix.
 - **Polling always sleeps before the first status check** (`job_polling.py:103`).
   A job that finishes instantly still costs one `polling_interval`. Minor, but
   an initial check-then-sleep would be friendlier.

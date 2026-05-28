@@ -353,6 +353,38 @@ class TestCallErrorHandling:
             call_factory.call("test", "getTest")
 
 
+class TestConvertDates:
+    """The regex gate: datetime-shaped strings convert, everything else passes through."""
+
+    def setup_method(self):
+        self.factory = OpenAPIClientFactory()
+
+    def test_full_timestamps_convert(self):
+        assert isinstance(self.factory._convert_dates("2024-01-15T10:30:00Z"), datetime)
+        assert isinstance(self.factory._convert_dates("2024-01-15T10:30:00.500Z"), datetime)
+        assert isinstance(self.factory._convert_dates("2024-01-15T10:30:00"), datetime)
+
+    def test_non_datetime_strings_pass_through_untouched(self):
+        # Versions, date-only strings, URLs and free text must stay strings.
+        for value in ["4.17.21", "2024-01-15", "https://example.com/2024-01-15", "lodash", "T", ""]:
+            assert self.factory._convert_dates(value) == value
+            assert isinstance(self.factory._convert_dates(value), str)
+
+    def test_nested_structures_convert_recursively(self):
+        result = self.factory._convert_dates(
+            {"created_at": "2024-01-15T10:30:00Z", "name": "x", "items": ["2024-01-15T10:30:00Z", "plain"]}
+        )
+        assert isinstance(result["created_at"], datetime)
+        assert result["name"] == "x"
+        assert isinstance(result["items"][0], datetime)
+        assert result["items"][1] == "plain"
+
+    def test_non_string_scalars_unchanged(self):
+        assert self.factory._convert_dates(42) == 42
+        assert self.factory._convert_dates(None) is None
+        assert self.factory._convert_dates(True) is True
+
+
 class TestCallResponseParsing:
     """_parse_response and _convert_dates."""
 
