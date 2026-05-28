@@ -2,8 +2,9 @@
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Callable, Dict, Optional, Tuple
 
+import click
 import yaml
 from packageurl import PackageURL
 
@@ -119,3 +120,40 @@ def parse_purl_with_version(purl: str) -> Tuple[Optional[str], Optional[str], Op
     except (ValueError, AttributeError):
         # Return None for invalid PURLs
         return None, None, None
+
+
+def apply_purl(
+    purl: Optional[str],
+    *,
+    with_version: bool = False,
+    type_mapper: Callable[[str], str] = lambda purl_type: purl_type,
+) -> Dict[str, str]:
+    """Decompose a PURL into command parameters, raising on an unparseable PURL.
+
+    Returns an empty dict when ``purl`` is falsy. Raises ``click.UsageError`` when
+    the PURL cannot be parsed. Otherwise returns a dict with only the keys the PURL
+    provided: ``ecosystem`` (passed through ``type_mapper``), ``package_name``, and
+    -- when ``with_version`` is set -- ``version``.
+
+    Callers merge the result so explicit args win, e.g.
+    ``ecosystem = ecosystem or apply_purl(purl).get("ecosystem")``.
+    """
+    if not purl:
+        return {}
+
+    ecosystem, package_name, version = parse_purl_with_version(purl)
+    if not ecosystem and not package_name:
+        if with_version:
+            example = "pkg:type/name@version (e.g. pkg:npm/lodash@4.17.21)"
+        else:
+            example = "pkg:type/name (e.g. pkg:npm/lodash)"
+        raise click.UsageError(f"Invalid PURL: {purl!r}. Expected format: {example}.")
+
+    result: Dict[str, str] = {}
+    if ecosystem:
+        result["ecosystem"] = type_mapper(ecosystem)
+    if package_name:
+        result["package_name"] = package_name
+    if with_version and version:
+        result["version"] = version
+    return result

@@ -7,7 +7,7 @@ import click
 from ecosystems_cli.commands.decorators import common_options
 from ecosystems_cli.commands.execution import execute_api_call, update_context
 from ecosystems_cli.commands.generator import APICommandGenerator
-from ecosystems_cli.helpers.purl_parser import parse_purl_with_version, purl_type_to_registry
+from ecosystems_cli.helpers.purl_parser import apply_purl, purl_type_to_registry
 
 packages = APICommandGenerator.create_api_group("packages")
 
@@ -29,17 +29,12 @@ if "get_dependencies" in packages.commands:
     _original_get_dependencies_callback = _get_dependencies_cmd.callback
 
     def _get_dependencies_with_purl(*args, **kwargs):
-        purl = kwargs.pop("purl", None)
-        if purl:
-            parsed_ecosystem, parsed_package_name, _ = parse_purl_with_version(purl)
-            if not parsed_ecosystem and not parsed_package_name:
-                raise click.UsageError(f"Invalid PURL: {purl!r}. Expected format: pkg:type/name (e.g. pkg:npm/axios).")
-            if parsed_ecosystem and not kwargs.get("ecosystem"):
-                # getDependencies filters by ecosystem name (e.g. "npm"), not the
-                # registry name ("npmjs.org"), so pass the raw PURL type through.
-                kwargs["ecosystem"] = parsed_ecosystem
-            if parsed_package_name and not kwargs.get("package_name"):
-                kwargs["package_name"] = parsed_package_name
+        # getDependencies filters by ecosystem name (e.g. "npm"), not the registry
+        # name ("npmjs.org"), so the PURL type is passed through unmapped.
+        parsed = apply_purl(kwargs.pop("purl", None))
+        for key in ("ecosystem", "package_name"):
+            if parsed.get(key) and not kwargs.get(key):
+                kwargs[key] = parsed[key]
         return _original_get_dependencies_callback(*args, **kwargs)
 
     _get_dependencies_cmd.callback = _get_dependencies_with_purl
@@ -74,15 +69,9 @@ def _add_purl_to_registry_package_command(command_name: str) -> None:
     original_callback = cmd.callback
 
     def wrapped_callback(*args, **kwargs):
-        purl = kwargs.pop("purl", None)
-        if purl:
-            parsed_ecosystem, parsed_package_name, _ = parse_purl_with_version(purl)
-            if not parsed_ecosystem and not parsed_package_name:
-                raise click.UsageError(f"Invalid PURL: {purl!r}. Expected format: pkg:type/name (e.g. pkg:npm/lodash).")
-            if parsed_ecosystem and not kwargs.get("registryname"):
-                kwargs["registryname"] = purl_type_to_registry(parsed_ecosystem)
-            if parsed_package_name and not kwargs.get("packagename"):
-                kwargs["packagename"] = parsed_package_name
+        parsed = apply_purl(kwargs.pop("purl", None), type_mapper=purl_type_to_registry)
+        kwargs["registryname"] = kwargs.get("registryname") or parsed.get("ecosystem")
+        kwargs["packagename"] = kwargs.get("packagename") or parsed.get("package_name")
         if not kwargs.get("registryname") or not kwargs.get("packagename"):
             raise click.UsageError("Either --purl or both REGISTRY_NAME and PACKAGE_NAME arguments are required")
         return original_callback(*args, **kwargs)
@@ -141,15 +130,10 @@ def get_registry_package(
     """
     update_context(ctx, timeout, format, domain, mailto)
 
-    # If PURL is provided, decompose it; explicit positional args win over PURL-derived values.
-    if purl:
-        parsed_ecosystem, parsed_package_name, _ = parse_purl_with_version(purl)
-        if not parsed_ecosystem and not parsed_package_name:
-            raise click.UsageError(f"Invalid PURL: {purl!r}. Expected format: pkg:type/name (e.g. pkg:npm/lodash).")
-        if parsed_ecosystem and not registry_name:
-            registry_name = purl_type_to_registry(parsed_ecosystem)
-        if parsed_package_name and not package_name:
-            package_name = parsed_package_name
+    # Explicit positional args win over PURL-derived values.
+    parsed = apply_purl(purl, type_mapper=purl_type_to_registry)
+    registry_name = registry_name or parsed.get("ecosystem")
+    package_name = package_name or parsed.get("package_name")
 
     # Validate that we have the required parameters
     if not registry_name or not package_name:
@@ -207,19 +191,11 @@ def get_registry_package_version(
     """
     update_context(ctx, timeout, format, domain, mailto)
 
-    # If PURL is provided, decompose it; explicit positional args win over PURL-derived values.
-    if purl:
-        parsed_ecosystem, parsed_package_name, parsed_version = parse_purl_with_version(purl)
-        if not parsed_ecosystem and not parsed_package_name:
-            raise click.UsageError(
-                f"Invalid PURL: {purl!r}. Expected format: pkg:type/name@version (e.g. pkg:npm/lodash@4.17.21)."
-            )
-        if parsed_ecosystem and not registry_name:
-            registry_name = purl_type_to_registry(parsed_ecosystem)
-        if parsed_package_name and not package_name:
-            package_name = parsed_package_name
-        if parsed_version and not version_number:
-            version_number = parsed_version
+    # Explicit positional args win over PURL-derived values.
+    parsed = apply_purl(purl, with_version=True, type_mapper=purl_type_to_registry)
+    registry_name = registry_name or parsed.get("ecosystem")
+    package_name = package_name or parsed.get("package_name")
+    version_number = version_number or parsed.get("version")
 
     # Validate that we have the required parameters
     if not registry_name or not package_name or not version_number:

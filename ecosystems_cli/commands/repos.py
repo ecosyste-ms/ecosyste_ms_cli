@@ -3,7 +3,7 @@
 import click
 
 from ecosystems_cli.commands.generator import APICommandGenerator
-from ecosystems_cli.helpers.purl_parser import parse_purl
+from ecosystems_cli.helpers.purl_parser import apply_purl
 
 repos = APICommandGenerator.create_api_group("repos")
 
@@ -36,15 +36,9 @@ def _add_purl_to_ecosystem_package_command(command_name: str) -> None:
     original_callback = cmd.callback
 
     def wrapped_callback(*args, **kwargs):
-        purl = kwargs.pop("purl", None)
-        if purl:
-            parsed_ecosystem, parsed_package = parse_purl(purl)
-            if not parsed_ecosystem and not parsed_package:
-                raise click.UsageError(f"Invalid PURL: {purl!r}. Expected format: pkg:type/name (e.g. pkg:npm/lodash).")
-            if parsed_ecosystem and not kwargs.get("ecosystem"):
-                kwargs["ecosystem"] = parsed_ecosystem
-            if parsed_package and not kwargs.get("package"):
-                kwargs["package"] = parsed_package
+        parsed = apply_purl(kwargs.pop("purl", None))
+        kwargs["ecosystem"] = kwargs.get("ecosystem") or parsed.get("ecosystem")
+        kwargs["package"] = kwargs.get("package") or parsed.get("package_name")
         if not kwargs.get("ecosystem") or not kwargs.get("package"):
             raise click.UsageError("Either --purl or both ECOSYSTEM and PACKAGE arguments are required")
         return original_callback(*args, **kwargs)

@@ -3,7 +3,7 @@
 import click
 
 from ecosystems_cli.commands.generator import APICommandGenerator
-from ecosystems_cli.helpers.purl_parser import parse_purl
+from ecosystems_cli.helpers.purl_parser import apply_purl
 
 dependabot = APICommandGenerator.create_api_group("dependabot")
 
@@ -25,15 +25,10 @@ if "get_advisories" in dependabot.commands:
     _original_get_advisories_callback = _get_advisories_cmd.callback
 
     def _get_advisories_with_purl(*args, **kwargs):
-        purl = kwargs.pop("purl", None)
-        if purl:
-            parsed_ecosystem, parsed_package_name = parse_purl(purl)
-            if not parsed_ecosystem and not parsed_package_name:
-                raise click.UsageError(f"Invalid PURL: {purl!r}. Expected format: pkg:type/name (e.g. pkg:npm/axios).")
-            if parsed_ecosystem and not kwargs.get("ecosystem"):
-                kwargs["ecosystem"] = parsed_ecosystem
-            if parsed_package_name and not kwargs.get("package_name"):
-                kwargs["package_name"] = parsed_package_name
+        parsed = apply_purl(kwargs.pop("purl", None))
+        for key in ("ecosystem", "package_name"):
+            if parsed.get(key) and not kwargs.get(key):
+                kwargs[key] = parsed[key]
         return _original_get_advisories_callback(*args, **kwargs)
 
     _get_advisories_cmd.callback = _get_advisories_with_purl

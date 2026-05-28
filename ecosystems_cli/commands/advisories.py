@@ -7,7 +7,7 @@ import click
 from ecosystems_cli.commands.decorators import common_options
 from ecosystems_cli.commands.execution import execute_api_call, update_context
 from ecosystems_cli.commands.generator import APICommandGenerator
-from ecosystems_cli.helpers.purl_parser import parse_purl
+from ecosystems_cli.helpers.purl_parser import apply_purl
 
 advisories = APICommandGenerator.create_api_group("advisories")
 
@@ -73,15 +73,10 @@ def get_advisories(
     """
     update_context(ctx, timeout, format, domain, mailto)
 
-    # If PURL is provided, decompose it; explicit flags win over PURL-derived values.
-    if purl:
-        parsed_ecosystem, parsed_package_name = parse_purl(purl)
-        if not parsed_ecosystem and not parsed_package_name:
-            raise click.UsageError(f"Invalid PURL: {purl!r}. Expected format: pkg:type/name (e.g. pkg:npm/axios).")
-        if parsed_ecosystem and not ecosystem:
-            ecosystem = parsed_ecosystem
-        if parsed_package_name and not package_name:
-            package_name = parsed_package_name
+    # Explicit flags win over PURL-derived values.
+    parsed = apply_purl(purl)
+    ecosystem = ecosystem or parsed.get("ecosystem")
+    package_name = package_name or parsed.get("package_name")
 
     # Build kwargs for the API call
     kwargs = {}
