@@ -156,11 +156,12 @@ Overall posture is reasonable for an API client; no critical issues.
 
 ## Clarity & simplification — what can be removed/simplified
 
-- **Delete `DefaultOperationHandler`'s stale config** (`default.py`). Every API
-  in `factory.py` has a dedicated handler, so `OPERATION_CONFIG` is unreachable
-  for real input, and its `all_args = list(args) + list(kwargs.values())` /
-  `all_args[0]` logic is a footgun if a future API forgets to register. Either
-  delete it or make it a genuine, tested fallback.
+- ~~**Delete `DefaultOperationHandler`'s stale config** (`default.py`).~~ ✅
+  **DONE** — `default.py` no longer carries `OPERATION_CONFIG` or the
+  `all_args[0]` override; it now inherits the base `build_params`, giving an
+  unregistered API a predictable "no path params, all query params" fallback
+  instead of guessing from a stale op-id table. Locked in by `test_handlers.py`
+  (factory resolution + fallback + the base OPERATION_PARAMS contract).
 - **Unify the three `--purl` mechanisms.** `packages.py` has the clean
   `_attach_purl_option`; `advisories.py` uses the `override_auto_command`
   decorator; but `dependabot.py:14-34` and `repos.py:11-50` still hand-roll
@@ -274,8 +275,8 @@ correctness and consumer impact, not uptime.
 2. ~~**(HIGH)** Add tests for the `openapi_client.call` HTTP/error/redirect
    path.~~ ✅ **DONE** — 22 tests covering request build, encoding, redirects,
    error mapping, rate-limit parsing, and response parsing.
-3. **(MED)** Unify the three `--purl` implementations; delete dead
-   `DefaultOperationHandler` config; remove the `method_name` trap.
+3. **(MED)** Unify the three `--purl` implementations; ~~delete dead
+   `DefaultOperationHandler` config~~ ✅; remove the `method_name` trap.
 4. **(MED)** Harden `table`/`tsv` for non-dict lists; reconsider
    `_convert_dates` scope.
 5. **(LOW)** Test MCP `call_tool` routing; fix copy-paste help strings;
