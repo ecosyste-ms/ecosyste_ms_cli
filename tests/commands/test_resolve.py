@@ -43,7 +43,7 @@ class TestResolveCommands:
     @mock.patch("ecosystems_cli.helpers.job_polling.api_factory")
     @mock.patch("ecosystems_cli.helpers.job_polling.print_output")
     def test_create_job_with_optional_params(self, mock_print_output, mock_api_factory):
-        """Test creating a resolve job with version and before parameters."""
+        """Test creating a resolve job with version and tree parameters."""
         mock_api_factory.call.return_value = {
             "id": "test-resolve-456",
             "status": "pending",
@@ -52,7 +52,7 @@ class TestResolveCommands:
 
         result = self.runner.invoke(
             self.resolve_group,
-            ["create_job", "express", "npm", "--version", "^4.18.0", "--before", "2023-01-01"],
+            ["create_job", "express", "npm", "--version", "^4.18.0", "--tree"],
             obj={"timeout": 20, "format": "json"},
         )
 
@@ -61,12 +61,51 @@ class TestResolveCommands:
             "resolve",
             "createJob",
             path_params={},
-            query_params={"package_name": "express", "registry": "npm", "version": "^4.18.0", "before": "2023-01-01"},
+            query_params={"package_name": "express", "registry": "npm", "version": "^4.18.0", "tree": "true"},
             timeout=mock.ANY,
             mailto=mock.ANY,
             base_url=mock.ANY,
         )
         mock_print_output.assert_called_once()
+
+    @mock.patch("ecosystems_cli.helpers.job_polling.api_factory")
+    @mock.patch("ecosystems_cli.helpers.job_polling.print_output")
+    def test_create_job_with_ecosystem(self, mock_print_output, mock_api_factory):
+        """Test creating a resolve job with --ecosystem instead of a registry argument."""
+        mock_api_factory.call.return_value = {
+            "id": "test-resolve-789",
+            "status": "pending",
+            "location": "https://resolve.ecosyste.ms/api/v1/jobs/test-resolve-789",
+        }
+
+        result = self.runner.invoke(
+            self.resolve_group,
+            ["create_job", "express", "--ecosystem", "npm"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "resolve",
+            "createJob",
+            path_params={},
+            query_params={"package_name": "express", "ecosystem": "npm"},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+        )
+        mock_print_output.assert_called_once()
+
+    def test_create_job_requires_registry_or_ecosystem(self):
+        """Test that omitting both REGISTRY and --ecosystem is a usage error."""
+        result = self.runner.invoke(
+            self.resolve_group,
+            ["create_job", "express"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code != 0
+        assert "Either REGISTRY argument or --ecosystem is required." in result.output
 
     def test_get_job_parameter_mapping(self):
         """Test that job_id parameter is correctly mapped to jobID key."""
