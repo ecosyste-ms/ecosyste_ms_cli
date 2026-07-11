@@ -19,14 +19,34 @@ console = Console()
 err_console = Console(stderr=True)
 
 
+def _explicitly_set(ctx, param_name: str, value, default) -> bool:
+    """Whether an option was actually provided at this command level.
+
+    Click's parameter-source tracking distinguishes an explicit value from the
+    option's default even when they are equal -- comparing against the default
+    cannot: a leaf-level ``--format table`` (the default value) would look
+    unset and lose to an outer ``--format json``. Falls back to the
+    value-differs-from-default heuristic for contexts without source tracking
+    (e.g. plain mocks in tests).
+    """
+    get_source = getattr(ctx, "get_parameter_source", None)
+    if get_source is not None:
+        source = get_source(param_name)
+        if source is not None:
+            from click.core import ParameterSource
+
+            return source != ParameterSource.DEFAULT
+    return value != default
+
+
 def update_context(ctx, timeout: int, format: str, domain: Optional[str], mailto: Optional[str] = None):
     """Merge command-level options into ``ctx.obj``.
 
     The single context-precedence mechanism, used by both the API group callback
-    and every leaf command. An option is written only when it differs from its
-    default (i.e. was explicitly set at this level); otherwise the value already
-    in ``ctx.obj`` -- inherited from the parent context -- is left untouched.
-    The net precedence is therefore: leaf option > group option > root option >
+    and every leaf command. An option is written only when it was explicitly set
+    at this level (per Click's parameter source); otherwise the value already in
+    ``ctx.obj`` -- inherited from the parent context -- is left untouched. The
+    net precedence is therefore: leaf option > group option > root option >
     default.
 
     Args:
@@ -37,9 +57,9 @@ def update_context(ctx, timeout: int, format: str, domain: Optional[str], mailto
         mailto: Email address for polite pool access
     """
     ctx.ensure_object(dict)
-    if timeout != DEFAULT_TIMEOUT:
+    if _explicitly_set(ctx, "timeout", timeout, DEFAULT_TIMEOUT):
         ctx.obj["timeout"] = timeout
-    if format != DEFAULT_OUTPUT_FORMAT:
+    if _explicitly_set(ctx, "format", format, DEFAULT_OUTPUT_FORMAT):
         ctx.obj["format"] = format
     if domain is not None:
         ctx.obj["domain"] = domain

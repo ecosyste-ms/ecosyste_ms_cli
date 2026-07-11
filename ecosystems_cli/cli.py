@@ -32,6 +32,8 @@ from ecosystems_cli.constants import (
 @click.option(
     "--timeout",
     default=DEFAULT_TIMEOUT,
+    # Same bounds as commands/decorators.py common_options.
+    type=click.IntRange(min=1, max=86400),
     help=f"Timeout in seconds for API requests. Default is {DEFAULT_TIMEOUT} seconds.",
 )
 @click.option(

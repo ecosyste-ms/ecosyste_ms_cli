@@ -97,10 +97,19 @@ class TestBuildBaseUrl:
         with pytest.raises(ValueError, match="Insecure HTTP domain rejected"):
             build_base_url("http://api.example.com", "repos")
 
-    def test_domain_with_https_preserved(self):
-        """Test that HTTPS protocol is preserved."""
+    def test_domain_with_https_scheme_gets_api_path(self):
+        """A scheme'd bare host is normalized like a bare host: /api/v1 appended.
+
+        Previously "https://host" was used verbatim, producing pathless URLs
+        that only returned redirects.
+        """
         result = build_base_url("https://api.example.com", "repos")
-        assert result == "https://api.example.com"
+        assert result == "https://api.example.com/api/v1"
+
+    def test_domain_with_trailing_slash_normalized(self):
+        """A trailing slash is cosmetic and must not defeat /api/v1 appending."""
+        assert build_base_url("api.example.com/", "repos") == "https://api.example.com/api/v1"
+        assert build_base_url("https://api.example.com/", "repos") == "https://api.example.com/api/v1"
 
     def test_domain_with_path_preserved(self):
         """Test that existing path in URL is preserved."""

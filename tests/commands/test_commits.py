@@ -29,7 +29,7 @@ class TestCommitsCommands:
 
         result = self.runner.invoke(
             self.commits_group,
-            ["get_host_committer", "octocat", "GitHub"],
+            ["get_host_committer", "GitHub", "octocat"],
             obj={"timeout": 20, "format": "json"},
         )
 

@@ -35,6 +35,54 @@ class TestVersionCommand:
         assert result.output.strip() == __version__
 
 
+class TestOptionValidation:
+    """Bounded parameter types reject nonsense as usage errors (exit 2)."""
+
+    def test_timeout_zero_rejected(self, runner):
+        result = runner.invoke(main, ["--timeout", "0", "advisories", "get_advisories_packages"])
+        assert result.exit_code == 2
+        assert "Invalid value" in result.output + result.stderr
+
+    def test_timeout_negative_rejected(self, runner):
+        result = runner.invoke(main, ["advisories", "get_advisories_packages", "--timeout", "-5"])
+        assert result.exit_code == 2
+
+    def test_timeout_astronomical_rejected(self, runner):
+        result = runner.invoke(main, ["--timeout", "99999999999999999999", "advisories", "get_advisories_packages"])
+        assert result.exit_code == 2
+
+    def test_polling_interval_negative_rejected(self, runner):
+        result = runner.invoke(main, ["resolve", "create_job", "express", "npmjs.org", "--polling-interval", "-1"])
+        assert result.exit_code == 2
+
+    def test_max_wait_zero_rejected(self, runner):
+        result = runner.invoke(main, ["resolve", "create_job", "express", "npmjs.org", "--max-wait", "0"])
+        assert result.exit_code == 2
+
+
+class TestFormatPrecedence:
+    """Leaf-level --format beats outer levels even when it equals the default."""
+
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_leaf_format_table_wins_over_root_json(self, mock_print_output, runner, mock_api_client):
+        result = runner.invoke(
+            main,
+            ["--format", "json", "advisories", "get_advisories_packages", "--format", "table"],
+        )
+
+        assert result.exit_code == 0
+        # print_output(data, format, console=...) — the leaf's explicit
+        # "table" must win over the root's "json".
+        assert mock_print_output.call_args[0][1] == "table"
+
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_root_format_inherited_when_leaf_unset(self, mock_print_output, runner, mock_api_client):
+        result = runner.invoke(main, ["--format", "json", "advisories", "get_advisories_packages"])
+
+        assert result.exit_code == 0
+        assert mock_print_output.call_args[0][1] == "json"
+
+
 class TestAdvisoriesCommands:
     """Test the advisories commands."""
 

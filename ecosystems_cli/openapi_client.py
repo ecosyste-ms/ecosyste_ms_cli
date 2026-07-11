@@ -35,6 +35,7 @@ from ecosystems_cli.exceptions import (
     APITimeoutError,
     InvalidAPIError,
     InvalidOperationError,
+    MissingParameterError,
 )
 
 # Datetime parsing. The regex is a cheap gate so strptime (and its exception
@@ -235,9 +236,19 @@ class OpenAPIClientFactory:
         # Replace path parameters with URL-encoded values
         if path_params:
             for param_name, param_value in path_params.items():
+                # An empty segment silently changes the route: /hosts/{name}
+                # with name="" becomes the /hosts/ collection endpoint.
+                if not str(param_value).strip():
+                    raise MissingParameterError(param_name)
                 # URL-encode the parameter value (safe='' means encode everything including '/')
                 encoded_value = quote(str(param_value), safe="")
                 path = path.replace(f"{{{param_name}}}", encoded_value)
+
+        # Any placeholder still present means a required path parameter was
+        # never supplied; the literal "{param}" must not reach the server.
+        unfilled = re.findall(r"\{([^{}]+)\}", path)
+        if unfilled:
+            raise MissingParameterError(", ".join(unfilled))
 
         # Ensure proper URL joining by adding trailing slash to base_url
         # urljoin replaces the last component if base_url doesn't end with /
