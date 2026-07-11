@@ -254,6 +254,14 @@ PURL parsing lives in `ecosystems_cli/helpers/purl_parser.py`:
 - `purl_type_to_registry(type)` maps a PURL type to a registry name using
   `registries.yaml` (used only by the registry-name commands).
 
-For a scoped or namespaced PURL, the namespace and name are recombined with a
-forward slash, e.g. `pkg:npm/@babel/core` -> name `@babel/core`, and
-`pkg:maven/org.apache.commons/commons-lang3` -> name `org.apache.commons/commons-lang3`.
+For a scoped or namespaced PURL, the namespace and name are recombined with
+the ecosystem's separator: a forward slash for most types (e.g.
+`pkg:npm/@babel/core` -> name `@babel/core`,
+`pkg:golang/github.com/gorilla/mux` -> name `github.com/gorilla/mux`), and a
+colon for maven (`pkg:maven/org.apache.commons/commons-lang3` -> name
+`org.apache.commons:commons-lang3`), matching how the ecosyste.ms APIs store
+package names.
+
+For PURL types served by more than one registry, the canonical registry is
+preferred over the first entry in `registries.yaml` (e.g. `maven` ->
+`repo1.maven.org`, `gem` -> `rubygems.org`).
