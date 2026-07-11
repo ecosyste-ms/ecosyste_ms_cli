@@ -8,13 +8,30 @@ import click
 import yaml
 from packageurl import PackageURL
 
+# Canonical registry per PURL type, for types served by multiple registries.
+# registries.yaml is sorted alphabetically, so plain first-match would pick a
+# mirror over the canonical source (maven -> artifacts.alfresco.com instead of
+# Maven Central, gem -> gem.coop instead of rubygems.org). Only applied when
+# the named registry actually exists in registries.yaml.
+_CANONICAL_REGISTRIES = {
+    "maven": "repo1.maven.org",
+    "gem": "rubygems.org",
+}
+
+# Separator joining a PURL namespace to the package name in ecosyste.ms
+# package names. Most ecosystems keep the PURL's own "/" (npm scopes,
+# composer vendors, go module paths); maven packages are stored as
+# "group:artifact".
+_NAMESPACE_SEPARATORS = {"maven": ":"}
+
 
 @lru_cache(maxsize=1)
 def _load_purl_type_to_registry_mapping() -> Dict[str, str]:
     """Load mapping from PURL type to registry name from registries.yaml.
 
-    Returns a dictionary mapping purl_type to registry name.
-    For purl_types with multiple registries, the first one is used.
+    Returns a dictionary mapping purl_type to registry name. For purl_types
+    with multiple registries, the canonical registry from
+    ``_CANONICAL_REGISTRIES`` wins; otherwise the first one listed is used.
 
     Returns:
         Dictionary mapping purl_type to registry name (e.g., {'npm': 'npmjs.org'})
@@ -33,13 +50,21 @@ def _load_purl_type_to_registry_mapping() -> Dict[str, str]:
 
         mapping = {}
         if "registries" in data:
+            known_names = set()
             for registry in data["registries"]:
                 purl_type = registry.get("purl_type")
                 name = registry.get("name")
                 if purl_type and name:
+                    known_names.add(name)
                     # For purl_types with multiple registries, use the first one
                     if purl_type not in mapping:
                         mapping[purl_type] = name
+
+            # Canonical registries beat alphabetical first-match, but only
+            # when they are still present in the registry list.
+            for purl_type, name in _CANONICAL_REGISTRIES.items():
+                if name in known_names:
+                    mapping[purl_type] = name
 
         return mapping
     except Exception:
@@ -69,7 +94,7 @@ def parse_purl(purl: str) -> Tuple[Optional[str], Optional[str]]:
         pkg:npm/fsa -> ('npm', 'fsa')
         pkg:npm/@types/node -> ('npm', '@types/node')
         pkg:pypi/django@4.2.0 -> ('pypi', 'django')
-        pkg:maven/org.apache.commons/commons-lang3 -> ('maven', 'org.apache.commons/commons-lang3')
+        pkg:maven/org.apache.commons/commons-lang3 -> ('maven', 'org.apache.commons:commons-lang3')
 
     Args:
         purl: Package URL string
@@ -92,7 +117,7 @@ def parse_purl_with_version(purl: str) -> Tuple[Optional[str], Optional[str], Op
         pkg:npm/@types/node -> ('npm', '@types/node', None)
         pkg:pypi/django@4.2.0 -> ('pypi', 'django', '4.2.0')
         pkg:npm/lodash@4.17.21 -> ('npm', 'lodash', '4.17.21')
-        pkg:maven/org.apache.commons/commons-lang3@3.12.0 -> ('maven', 'org.apache.commons/commons-lang3', '3.12.0')
+        pkg:maven/org.apache.commons/commons-lang3@3.12.0 -> ('maven', 'org.apache.commons:commons-lang3', '3.12.0')
 
     Args:
         purl: Package URL string
@@ -109,10 +134,10 @@ def parse_purl_with_version(purl: str) -> Tuple[Optional[str], Optional[str], Op
 
         # Construct the full package name from namespace and name
         # For npm scoped packages: namespace='@babel', name='traverse' -> '@babel/traverse'
-        # For maven: namespace='org.apache.commons', name='commons-lang3' -> 'org.apache.commons/commons-lang3'
+        # For maven: namespace='org.apache.commons', name='commons-lang3' -> 'org.apache.commons:commons-lang3'
         if purl_obj.namespace:
-            # Namespace and name are combined with a forward slash
-            package_name = f"{purl_obj.namespace}/{purl_obj.name}"
+            separator = _NAMESPACE_SEPARATORS.get(purl_obj.type, "/")
+            package_name = f"{purl_obj.namespace}{separator}{purl_obj.name}"
         else:
             package_name = purl_obj.name
 

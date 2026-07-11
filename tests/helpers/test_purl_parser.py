@@ -25,10 +25,17 @@ def test_parse_purl_with_version():
 
 
 def test_parse_purl_with_namespace():
-    """Test parsing a PURL with namespace (Maven style)."""
+    """Test parsing a PURL with namespace (Maven style uses ':' separator)."""
     ecosystem, package_name = parse_purl("pkg:maven/org.apache.commons/commons-lang3")
     assert ecosystem == "maven"
-    assert package_name == "org.apache.commons/commons-lang3"
+    assert package_name == "org.apache.commons:commons-lang3"
+
+
+def test_parse_purl_golang_namespace_keeps_slash():
+    """Test that non-maven namespaces keep the '/' separator."""
+    ecosystem, package_name = parse_purl("pkg:golang/github.com/gorilla/mux")
+    assert ecosystem == "golang"
+    assert package_name == "github.com/gorilla/mux"
 
 
 def test_parse_purl_with_qualifiers():
@@ -117,10 +124,10 @@ def test_parse_purl_with_version_pypi():
 
 
 def test_parse_purl_with_version_maven():
-    """Test parsing a Maven PURL with version."""
+    """Test parsing a Maven PURL with version (group:artifact naming)."""
     ecosystem, package_name, version = parse_purl_with_version("pkg:maven/org.apache.commons/commons-lang3@3.12.0")
     assert ecosystem == "maven"
-    assert package_name == "org.apache.commons/commons-lang3"
+    assert package_name == "org.apache.commons:commons-lang3"
     assert version == "3.12.0"
 
 
@@ -179,8 +186,15 @@ def test_purl_type_to_registry_pypi():
 
 def test_purl_type_to_registry_maven():
     """Test converting maven to registry name."""
-    # Maven has multiple registries, should return the first one (artifacts.alfresco.com)
-    assert purl_type_to_registry("maven") == "artifacts.alfresco.com"
+    # Maven has multiple registries; the canonical one (Maven Central) wins
+    # over the alphabetical first-match (artifacts.alfresco.com).
+    assert purl_type_to_registry("maven") == "repo1.maven.org"
+
+
+def test_purl_type_to_registry_gem():
+    """Test converting gem to registry name."""
+    # gem has multiple registries; canonical rubygems.org wins over gem.coop.
+    assert purl_type_to_registry("gem") == "rubygems.org"
 
 
 def test_purl_type_to_registry_cargo():
