@@ -97,6 +97,83 @@ def test_format_tsv_with_scalar_list(capsys):
     assert lines == ["value", "react-dom", "react-router-dom"]
 
 
+def test_tsv_escapes_embedded_newlines_and_tabs(capsys):
+    """Embedded newlines/tabs in values must not fragment records across lines.
+
+    Every record occupies exactly one physical line with the same column
+    count as the header; control characters are escaped as \\n, \\t, \\r.
+    """
+    data = [
+        {"name": "pkg-a", "description": "line one\nline two\ttabbed\rcarriage"},
+        {"name": "pkg-b", "description": "plain"},
+    ]
+    print_output(data, format_type="tsv", console=Console(width=80))
+
+    lines = capsys.readouterr().out.splitlines()
+    assert len(lines) == 3  # header + 2 records, nothing fragmented
+    assert all(len(line.split("\t")) == 2 for line in lines)
+    assert lines[1] == "pkg-a\tline one\\nline two\\ttabbed\\rcarriage"
+
+
+def test_tsv_escapes_backslashes_unambiguously(capsys):
+    """A literal backslash-n in data must stay distinguishable from an escaped newline."""
+    data = [{"name": "pkg", "description": "literal \\n backslash"}]
+    print_output(data, format_type="tsv", console=Console(width=80))
+
+    lines = capsys.readouterr().out.splitlines()
+    # The pre-existing backslash doubles, so consumers can round-trip:
+    # "\\n" (escaped backslash + n) vs "\n" (escaped newline).
+    assert lines[1] == "pkg\tliteral \\\\n backslash"
+
+
+def test_tsv_escapes_values_nested_in_dicts(capsys):
+    """Newlines inside nested structures (rendered by format_value) are escaped too."""
+    data = [{"name": "pkg", "meta": {"note": "a\nb"}}]
+    print_output(data, format_type="tsv", console=Console(width=80))
+
+    lines = capsys.readouterr().out.splitlines()
+    assert len(lines) == 2
+    assert "\\n" in lines[1]
+
+
+def test_tsv_renders_null_and_booleans_as_tsv_conventions(capsys):
+    """None becomes an empty cell and booleans lowercase true/false, not Python literals."""
+    data = [{"name": "pkg", "repository_url": None, "has_sbom": False, "active": True}]
+    print_output(data, format_type="tsv", console=Console(width=80))
+
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[1] == "pkg\t\tfalse\ttrue"
+
+
+def test_tsv_single_object_renders_null_and_booleans_as_tsv_conventions(capsys):
+    """The flattened single-object path uses the same cell conventions as list rows."""
+    data = {"name": "pkg", "repository_url": None, "has_sbom": False}
+    print_output(data, format_type="tsv", console=Console(width=80))
+
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[1] == "pkg\t\tfalse"
+
+
+def test_tsv_empty_list_emits_nothing(capsys):
+    """An empty result set must not fabricate a 'value'/'[]' row."""
+    print_output([], format_type="tsv", console=Console(width=80))
+
+    assert capsys.readouterr().out == ""
+
+
+def test_table_empty_list_prints_no_results(capsys):
+    """An empty result set in table format says 'No results' instead of bare '[]'."""
+    from io import StringIO
+
+    output = StringIO()
+    console = Console(file=output, force_terminal=True, color_system=None, width=80)
+    print_output([], format_type="table", console=console)
+
+    out = output.getvalue()
+    assert "No results" in out
+    assert "[]" not in out
+
+
 def test_format_table_with_scalar_list(capsys):
     """A list of scalars renders a single Value column rather than raising AttributeError."""
     data = ["react-dom", "react-router-dom"]
