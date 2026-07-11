@@ -20,6 +20,10 @@ from ecosystems_cli.helpers.print_output import print_output
 from ecosystems_cli.openapi_client import _factory as api_factory
 
 console = Console()
+# Diagnostics go to stderr so stdout stays machine-parseable (see
+# commands/execution.py); progress messages stay on stdout only in the
+# interactive table format.
+err_console = Console(stderr=True)
 
 # Statuses that end a polling loop.
 TERMINAL_STATUSES = ("completed", "complete", "success", "failed", "error")
@@ -86,7 +90,7 @@ def submit_and_poll(
 
         job_id = _extract_job_id(result)
         if not job_id:
-            print_error("No job ID in response, cannot poll for completion", console=console)
+            print_error("No job ID in response, cannot poll for completion", console=err_console)
             print_output(result, output_format, console=console)
             # sys.exit (SystemExit) escapes the except Exception handler below.
             sys.exit(1)
@@ -138,7 +142,7 @@ def submit_and_poll(
             if time.monotonic() >= deadline:
                 print_error(
                     f"Polling timed out after {max_wait:g}s without reaching a terminal status.",
-                    console=console,
+                    console=err_console,
                 )
                 print_output(last_response, output_format, console=console)
                 sys.exit(1)
@@ -146,8 +150,8 @@ def submit_and_poll(
             time.sleep(polling_interval)
 
     except EcosystemsCLIError as e:
-        print_error(str(e), console=console)
+        print_error(str(e), console=err_console)
         sys.exit(1)
     except Exception as e:
-        print_error(f"Unexpected error: {str(e)}", console=console)
+        print_error(f"Unexpected error: {str(e)}", console=err_console)
         sys.exit(1)

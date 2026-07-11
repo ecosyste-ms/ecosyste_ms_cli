@@ -10,6 +10,7 @@ from ecosystems_cli.commands.generator import APICommandGenerator
 from ecosystems_cli.constants import DEFAULT_MAX_POLL_WAIT
 from ecosystems_cli.helpers.build_kwargs import build_kwargs
 from ecosystems_cli.helpers.job_polling import submit_and_poll
+from ecosystems_cli.helpers.purl_parser import purl_type_to_registry
 
 resolve = APICommandGenerator.create_api_group("resolve")
 
@@ -17,7 +18,11 @@ resolve = APICommandGenerator.create_api_group("resolve")
 @override_auto_command(resolve, "create_job", help="Submit a resolve job")
 @click.argument("package_name", required=True)
 @click.argument("registry", required=False)
-@click.option("--ecosystem", default=None, help="Ecosystem/purl type (e.g. gem, npm, cargo). Alternative to REGISTRY.")
+@click.option(
+    "--ecosystem",
+    default=None,
+    help="Ecosystem/purl type (e.g. gem, npm, cargo), mapped to its canonical registry. Alternative to REGISTRY.",
+)
 @click.option("--version", default=None, help="Resolve only with version within this range")
 @click.option("--tree", is_flag=True, default=False, help="Return the full dependency tree with PURLs instead of a flat map")
 @click.option(
@@ -66,15 +71,20 @@ def create_job(
     """
     update_context(ctx, timeout, format, domain, mailto)
 
-    # The API accepts either a registry or an ecosystem/purl type; require one.
+    # One of registry / ecosystem is required. The server silently ignores an
+    # `ecosystem` query parameter (the job completes instantly with empty
+    # results), so an ecosystem is mapped to its canonical registry
+    # client-side and always submitted as `registry`. An explicit REGISTRY
+    # argument wins over --ecosystem.
     if not registry and not ecosystem:
         raise click.UsageError("Either REGISTRY argument or --ecosystem is required.")
+    if not registry:
+        registry = purl_type_to_registry(ecosystem)
 
     payload = {
         "package_name": package_name,
+        "registry": registry,
         **build_kwargs(
-            registry=registry,
-            ecosystem=ecosystem,
             version=version,
             tree="true" if tree else None,
         ),

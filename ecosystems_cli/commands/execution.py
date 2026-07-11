@@ -14,6 +14,9 @@ from ecosystems_cli.helpers.print_output import print_output
 from ecosystems_cli.openapi_client import _factory as api_factory
 
 console = Console()
+# Diagnostics go to stderr so stdout stays machine-parseable: piping
+# `--format json` output must never receive an error panel as data.
+err_console = Console(stderr=True)
 
 
 def update_context(ctx, timeout: int, format: str, domain: Optional[str], mailto: Optional[str] = None):
@@ -110,8 +113,8 @@ def execute_api_call(
 
         print_output(result, ctx.obj.get("format", DEFAULT_OUTPUT_FORMAT), console=console)
     except EcosystemsCLIError as e:
-        print_error(str(e), console=console)
+        print_error(str(e), console=err_console)
         sys.exit(1)
     except Exception as e:
-        print_error(f"Unexpected error: {str(e)}", console=console)
+        print_error(f"Unexpected error: {str(e)}", console=err_console)
         sys.exit(1)
