@@ -51,37 +51,26 @@ Automatically formats the code using:
 - black for code formatting
 - isort for import ordering
 
-### `make prepare-release type=<major|minor|patch>`
-Prepares a new release by:
-- Validating the release type parameter (must be major, minor, or patch)
-- Checking that the working directory is clean
-- Bumping the version according to the specified type
-- Creating a git tag for the new version
-- Updating the CHANGELOG.md file with changes since the previous release
-- Committing and pushing the changes
-- Pushing the new tag to trigger the release workflow
-
-Usage example:
-```bash
-make prepare-release type=minor
-```
-
 ## Releases
 
+To cut a release, push a semver tag — that is the whole process. There is no
+`make prepare-release` target and no local version bump; the tag is the source
+of truth for the version.
 
+```bash
+git tag v1.4.3
+git push origin v1.4.3
+```
 
-This project uses the [release](../.github/workflows/release.yml) GitHub Action which is triggered by a pushing a branch using a semver tags.
+Pushing the tag triggers the [release](../.github/workflows/release.yml)
+workflow, which generates a changelog from the git log, sets the version from
+the tag, builds the package, and creates a GitHub Release with the built
+artifacts attached. (Tests and linting are not run here — they run on branch
+pushes via [build-test-lint](../.github/workflows/build-test-lint.yml).)
 
-1. Tag your commit with a version number:
-   ```bash
-   git tag -a v0.1.0
-   git push origin v0.1.0
-   ```
-
-2. The GitHub Action will automatically:
-   - Run tests and linting
-   - Build the package
-   - Create a GitHub release with the built package
+Publishing to PyPI is a separate, manual step: run the
+[publish](../.github/workflows/publish.yml) workflow from the **Actions** tab
+and enter the tag (e.g. `v1.4.3`).
 
 ## Conventional Commits
 
