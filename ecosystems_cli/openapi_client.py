@@ -263,7 +263,11 @@ class OpenAPIClientFactory:
         method = operation_info["method"]
 
         try:
-            # Make the HTTP request
+            # Make the HTTP request. GET requests follow redirects so data
+            # endpoints that 301/302 (e.g. canonical host/repo names) return
+            # the actual payload. Non-GET requests keep redirects manual: the
+            # job APIs answer createJob POSTs with a 301 whose Location is the
+            # created job, which submit_and_poll consumes as a handle.
             response = self._session.request(
                 method=method,
                 url=url,
@@ -271,10 +275,10 @@ class OpenAPIClientFactory:
                 json=body if body else None,
                 headers=request_headers if request_headers else None,
                 timeout=timeout,
-                allow_redirects=False,  # Handle redirects manually
+                allow_redirects=(method == "GET"),
             )
 
-            # Handle redirects
+            # Handle redirects (non-GET only; GET redirects are followed above)
             if response.status_code in (301, 302, 303, 307, 308):
                 location = response.headers.get("Location")
                 if location:

@@ -108,6 +108,13 @@ def mock_spec():
                     },
                 }
             },
+            "/jobs": {
+                "post": {
+                    "operationId": "createTest",
+                    "summary": "Submit a job",
+                    "responses": {"301": {"description": "Redirect"}},
+                }
+            },
         },
     }
 
@@ -197,10 +204,11 @@ class TestOpenAPIClientFactory:
         operations = factory.list_operations("test")
 
         # Assert
-        assert len(operations) == 2
+        assert len(operations) == 3
         operation_ids = [op["id"] for op in operations]
         assert "getTest" in operation_ids
         assert "getItem" in operation_ids
+        assert "createTest" in operation_ids
 
     def test_call_invalid_operation(self, mock_spec_file):
         """Test calling non-existent operation."""
@@ -237,7 +245,9 @@ class TestCallRequestBuilding:
         assert kwargs["method"] == "GET"
         assert kwargs["url"] == "https://test.example.com/api/v1/test"
         assert kwargs["params"] == {"id": "abc"}
-        assert kwargs["allow_redirects"] is False
+        # GET requests follow redirects so data endpoints that 301/302 return
+        # the real payload instead of a redirect envelope.
+        assert kwargs["allow_redirects"] is True
 
     def test_path_params_are_url_encoded(self, call_factory):
         """Path values are fully encoded (safe=''), so '/' and spaces can't escape the segment."""
@@ -274,17 +284,22 @@ class TestCallRequestBuilding:
 
 
 class TestCallRedirectHandling:
-    """Redirects are not followed; the Location is surfaced to the caller."""
+    """GET redirects are followed; non-GET redirects surface the Location.
+
+    The job APIs answer createJob POSTs with a 301 whose Location is the
+    created job, so that envelope must keep reaching submit_and_poll.
+    """
 
     @pytest.mark.parametrize("status", [301, 302, 303, 307, 308])
-    def test_redirect_returns_location(self, call_factory, status):
+    def test_post_redirect_returns_location(self, call_factory, status):
         call_factory._session.request.return_value = _make_response(
             status_code=status, headers={"Location": "https://jobs.example.com/jobs/42"}
         )
 
-        result = call_factory.call("test", "getTest")
+        result = call_factory.call("test", "createTest")
 
         assert result == {"location": "https://jobs.example.com/jobs/42", "status_code": status}
+        assert call_factory._session.request.call_args.kwargs["allow_redirects"] is False
 
 
 class TestCallErrorHandling:

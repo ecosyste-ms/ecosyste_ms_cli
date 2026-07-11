@@ -112,7 +112,7 @@ class TestSbomCommands:
 
         result = self.runner.invoke(self.sbom_group, ["create_job", "invalid-url"], obj={"timeout": 20, "format": "json"})
 
-        assert result.exit_code == 0
+        assert result.exit_code == 1
         mock_print_error.assert_called_once_with("Unexpected error: Invalid URL", console=mock.ANY)
 
     @mock.patch("ecosystems_cli.helpers.job_polling.api_factory")
@@ -168,7 +168,7 @@ class TestSbomCommands:
             obj={"timeout": 20, "format": "json"},
         )
 
-        assert result.exit_code == 0
+        assert result.exit_code == 1
 
         # Verify error message was printed
         mock_print_error.assert_called_once_with("No job ID in response, cannot poll for completion", console=mock.ANY)

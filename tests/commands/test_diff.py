@@ -171,7 +171,7 @@ class TestDiffCommands:
             obj={"timeout": 20, "format": "json"},
         )
 
-        assert result.exit_code == 0
+        assert result.exit_code == 1
         mock_print_error.assert_called_once_with("Unexpected error: Invalid URL", console=mock.ANY)
 
     @mock.patch("ecosystems_cli.helpers.job_polling.api_factory")
@@ -196,7 +196,7 @@ class TestDiffCommands:
             obj={"timeout": 20, "format": "json"},
         )
 
-        assert result.exit_code == 0
+        assert result.exit_code == 1
 
         # Verify error was printed
         mock_print_error.assert_called_once_with("No job ID in response, cannot poll for completion", console=mock.ANY)
@@ -221,7 +221,7 @@ class TestDiffCommands:
             obj={"timeout": 20, "format": "json"},
         )
 
-        assert result.exit_code == 0
+        assert result.exit_code == 1
         mock_print_error.assert_called_once()
         assert "timed out" in mock_print_error.call_args[0][0].lower()
         # The last observed status is still printed for the user.

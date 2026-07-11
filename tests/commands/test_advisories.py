@@ -104,7 +104,7 @@ class TestAdvisoriesCommands:
 
         result = self.runner.invoke(self.advisories_group, ["get_advisory", "nonexistent-uuid"], obj={"timeout": 20})
 
-        assert result.exit_code == 0
+        assert result.exit_code == 1
         mock_print_error.assert_called_once_with("Unexpected error: Advisory not found", console=mock.ANY)
 
     @mock.patch("ecosystems_cli.commands.execution.api_factory")
@@ -179,7 +179,7 @@ class TestAdvisoriesCommands:
 
         result = self.runner.invoke(self.advisories_group, ["lookup_advisories", "--purl", "invalid-purl"], obj={"timeout": 20})
 
-        assert result.exit_code == 0
+        assert result.exit_code == 1
         mock_print_error.assert_called_once_with("Unexpected error: Invalid PURL format", console=mock.ANY)
 
     @mock.patch("ecosystems_cli.commands.execution.api_factory")

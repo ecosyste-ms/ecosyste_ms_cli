@@ -183,7 +183,7 @@ class TestPackagesCommands:
             obj={"timeout": 20},
         )
 
-        assert result.exit_code == 0
+        assert result.exit_code == 1
         mock_print_error.assert_called_once_with("Unexpected error: Package not found", console=mock.ANY)
 
     @mock.patch("ecosystems_cli.commands.execution.api_factory")
