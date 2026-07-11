@@ -31,6 +31,7 @@ for _command in (
     "get_registry_package_dependent_packages",
     "get_registry_package_versions",
     "get_registry_package_version_numbers",
+    "get_registry_package_latest_version",
 ):
     attach_purl_option(
         packages,

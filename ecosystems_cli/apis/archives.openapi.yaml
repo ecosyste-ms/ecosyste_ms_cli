@@ -1,15 +1,11 @@
----
 openapi: 3.0.1
 info:
-  title: 'Ecosyste.ms: Archives'
-  description: An open API service for inspecting package archives and files from
-    many open source software ecosystems. Archives acts as a caching proxy that allows
-    you to explore package contents (tarballs, zips, etc.) without downloading them
-    locally.
+  title: "Ecosyste.ms: Archives"
+  description: "An open API service for inspecting package archives and files from many open source software ecosystems. Archives acts as a caching proxy that allows you to explore package contents (tarballs, zips, etc.) without downloading them locally."
   contact:
     name: Ecosyste.ms
     email: support@ecosyste.ms
-    url: https://ecosyste.ms
+    url: https://ecosyste.ms 
   version: 1.0.0
   license:
     name: CC-BY-SA-4.0
@@ -20,18 +16,18 @@ externalDocs:
 servers:
 - url: https://archives.ecosyste.ms/api/v1
 paths:
-  "/archives/list":
+  /archives/list:
     get:
       summary: list files in an archive
       operationId: list
       parameters:
-      - name: url
-        in: query
-        description: URL to a package archive file (e.g., https://registry.npmjs.org/express/-/express-4.18.2.tgz)
-        required: true
-        schema:
-          type: string
-          example: https://registry.npmjs.org/express/-/express-4.18.2.tgz
+        - name: url
+          in: query
+          description: URL to a package archive file (e.g., https://registry.npmjs.org/express/-/express-4.18.2.tgz)
+          required: true
+          schema:
+            type: string
+            example: "https://registry.npmjs.org/express/-/express-4.18.2.tgz"
       responses:
         200:
           description: OK
@@ -41,95 +37,90 @@ paths:
                 type: array
                 items:
                   type: string
-                example:
-                - package.json
-                - README.md
-                - lib/express.js
-                - lib/application.js
-  "/archives/contents":
+                example: ["package.json", "README.md", "lib/express.js", "lib/application.js"]
+  /archives/contents:
     get:
       summary: get contents of a path from an archive
       operationId: contents
       parameters:
-      - name: url
-        in: query
-        description: URL to a package archive file (e.g., https://registry.npmjs.org/express/-/express-4.18.2.tgz)
-        required: true
-        schema:
-          type: string
-          example: https://registry.npmjs.org/express/-/express-4.18.2.tgz
-      - name: path
-        in: query
-        description: Path to a specific file or folder within the archive (e.g., 'package.json'
-          or 'lib/')
-        required: true
-        schema:
-          type: string
-          example: package.json
+        - name: url
+          in: query
+          description: URL to a package archive file (e.g., https://registry.npmjs.org/express/-/express-4.18.2.tgz)
+          required: true
+          schema:
+            type: string
+            example: "https://registry.npmjs.org/express/-/express-4.18.2.tgz"
+        - name: path
+          in: query
+          description: Path to a specific file or folder within the archive (e.g., 'package.json' or 'lib/')
+          required: true
+          schema:
+            type: string
+            example: "package.json"
       responses:
         200:
           description: OK
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/Content"
-  "/archives/readme":
+                $ref: '#/components/schemas/Content'
+  /archives/readme:
     get:
       summary: get readme from an archive
       operationId: readme
       parameters:
-      - name: url
-        in: query
-        description: URL to a package archive file (e.g., https://registry.npmjs.org/express/-/express-4.18.2.tgz)
-        required: true
-        schema:
-          type: string
-          example: https://registry.npmjs.org/express/-/express-4.18.2.tgz
+        - name: url
+          in: query
+          description: URL to a package archive file (e.g., https://registry.npmjs.org/express/-/express-4.18.2.tgz)
+          required: true
+          schema:
+            type: string
+            example: "https://registry.npmjs.org/express/-/express-4.18.2.tgz"
       responses:
         200:
           description: OK
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/Readme"
-  "/archives/changelog":
+                $ref: '#/components/schemas/Readme'
+  /archives/changelog:
     get:
       summary: get changelog from an archive
       operationId: changelog
       parameters:
-      - name: url
-        in: query
-        description: URL to a package archive file (e.g., https://registry.npmjs.org/express/-/express-4.18.2.tgz)
-        required: true
-        schema:
-          type: string
-          example: https://registry.npmjs.org/express/-/express-4.18.2.tgz
+        - name: url
+          in: query
+          description: URL to a package archive file (e.g., https://registry.npmjs.org/express/-/express-4.18.2.tgz)
+          required: true
+          schema:
+            type: string
+            example: "https://registry.npmjs.org/express/-/express-4.18.2.tgz"
       responses:
         200:
           description: OK
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/Changelog"
-  "/archives/repopack":
+                $ref: '#/components/schemas/Changelog'
+  /archives/repopack:
     get:
       summary: get repopack from an archive
       operationId: repopack
       parameters:
-      - name: url
-        in: query
-        description: URL to a package archive file (e.g., https://registry.npmjs.org/express/-/express-4.18.2.tgz)
-        required: true
-        schema:
-          type: string
-          example: https://registry.npmjs.org/express/-/express-4.18.2.tgz
+        - name: url
+          in: query
+          description: URL to a package archive file (e.g., https://registry.npmjs.org/express/-/express-4.18.2.tgz)
+          required: true
+          schema:
+            type: string
+            example: "https://registry.npmjs.org/express/-/express-4.18.2.tgz"
       responses:
         200:
           description: OK
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/RepoPack"
+                $ref: '#/components/schemas/RepoPack'
 components:
   schemas:
     Content:
@@ -138,7 +129,7 @@ components:
         name:
           type: string
           description: Name of the file or directory
-          example: package.json
+          example: "package.json"
         directory:
           type: boolean
           description: Whether this path is a directory
@@ -146,12 +137,7 @@ components:
         contents:
           type: string
           description: File contents (only present for files, not directories)
-          example: |-
-            {
-              "name": "express",
-              "version": "4.18.2",
-              "description": "Fast, unopinionated, minimalist web framework"
-            }
+          example: "{\n  \"name\": \"express\",\n  \"version\": \"4.18.2\",\n  \"description\": \"Fast, unopinionated, minimalist web framework\"\n}"
     Readme:
       type: object
       properties:

@@ -1032,6 +1032,65 @@ class TestPackagesCommands:
 
     @mock.patch("ecosystems_cli.commands.execution.api_factory")
     @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_get_registry_package_latest_version_with_args(self, mock_print_output, mock_api_factory):
+        """Test getting the latest version of a package by positional args."""
+        mock_api_factory.call.return_value = {"number": "4.17.21", "dependencies": []}
+
+        result = self.runner.invoke(
+            self.packages_group,
+            ["get_registry_package_latest_version", "npmjs.org", "lodash"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "packages",
+            "getRegistryPackageLatestVersion",
+            path_params={"registryName": "npmjs.org", "packageName": "lodash"},
+            query_params={},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+        )
+        mock_print_output.assert_called_once()
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_get_registry_package_latest_version_with_purl(self, mock_print_output, mock_api_factory):
+        """Test get_registry_package_latest_version decomposes --purl into path params."""
+        mock_api_factory.call.return_value = {"number": "4.17.21", "dependencies": []}
+
+        result = self.runner.invoke(
+            self.packages_group,
+            ["get_registry_package_latest_version", "--purl", "pkg:npm/lodash"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "packages",
+            "getRegistryPackageLatestVersion",
+            path_params={"registryName": "npmjs.org", "packageName": "lodash"},
+            query_params={},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+        )
+        mock_print_output.assert_called_once()
+
+    def test_get_registry_package_latest_version_missing_args(self):
+        """Test error when neither --purl nor positional args provided."""
+        result = self.runner.invoke(
+            self.packages_group,
+            ["get_registry_package_latest_version"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code != 0
+        assert "Either --purl or both REGISTRY_NAME and PACKAGE_NAME arguments are required" in result.output
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
     def test_get_registry_package_names_with_prefix_postfix(self, mock_print_output, mock_api_factory):
         """Test getting registry package names with prefix and postfix filters."""
         mock_api_factory.call.return_value = ["react-dom", "react-router-dom"]

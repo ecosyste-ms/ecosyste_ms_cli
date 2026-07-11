@@ -16,9 +16,10 @@ resolve = APICommandGenerator.create_api_group("resolve")
 
 @override_auto_command(resolve, "create_job", help="Submit a resolve job")
 @click.argument("package_name", required=True)
-@click.argument("registry", required=True)
+@click.argument("registry", required=False)
+@click.option("--ecosystem", default=None, help="Ecosystem/purl type (e.g. gem, npm, cargo). Alternative to REGISTRY.")
 @click.option("--version", default=None, help="Resolve only with version within this range")
-@click.option("--before", default=None, help="Resolve only with dependencies before this date")
+@click.option("--tree", is_flag=True, default=False, help="Return the full dependency tree with PURLs instead of a flat map")
 @click.option(
     "--polling-interval",
     type=float,
@@ -40,9 +41,10 @@ def create_job(
     domain: Optional[str],
     mailto: Optional[str],
     package_name: str,
-    registry: str,
+    registry: Optional[str],
+    ecosystem: Optional[str],
     version: Optional[str],
-    before: Optional[str],
+    tree: bool,
     polling_interval: Optional[float],
     max_wait: float,
 ):
@@ -55,12 +57,26 @@ def create_job(
         domain: API domain
         mailto: Email for polite pool access
         package_name: Name of the package
-        registry: Name of the package registry
+        registry: Name of the package registry (either registry or ecosystem is required)
+        ecosystem: Ecosystem/purl type, alternative to registry
         version: Optional version range
-        before: Optional date to resolve dependencies before
+        tree: Return the full dependency tree with PURLs instead of a flat map
         polling_interval: Optional polling interval in seconds
         max_wait: Maximum seconds to poll before giving up
     """
     update_context(ctx, timeout, format, domain, mailto)
-    payload = {"package_name": package_name, "registry": registry, **build_kwargs(version=version, before=before)}
+
+    # The API accepts either a registry or an ecosystem/purl type; require one.
+    if not registry and not ecosystem:
+        raise click.UsageError("Either REGISTRY argument or --ecosystem is required.")
+
+    payload = {
+        "package_name": package_name,
+        **build_kwargs(
+            registry=registry,
+            ecosystem=ecosystem,
+            version=version,
+            tree="true" if tree else None,
+        ),
+    }
     submit_and_poll(ctx, "resolve", payload, polling_interval=polling_interval, max_wait=max_wait)

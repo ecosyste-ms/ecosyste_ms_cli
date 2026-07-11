@@ -68,12 +68,13 @@ ecosystems advisories get_advisories --purl "pkg:npm/@babel/traverse"
 ecosystems advisories get_advisories --purl "pkg:npm/fsa" --severity high
 ```
 
-#### `lookup_advisories_by_purl` (PURL passed to the API)
+#### `lookup_advisories` (PURL passed to the API)
 
-Look up advisories for a specific package, optionally pinned to a version.
+Look up advisories for a specific package, optionally pinned to a version. A
+source repository URL may be used instead via `--repository-url`.
 
 ```bash
-ecosystems advisories lookup_advisories_by_purl --purl "pkg:npm/lodash@4.17.20"
+ecosystems advisories lookup_advisories --purl "pkg:npm/lodash@4.17.20"
 ```
 
 ### Dependabot API
@@ -233,7 +234,7 @@ ecosystems packages get_registry_package --purl "invalid-purl"
 Pass-through commands forward the PURL to the API, which reports the problem:
 
 ```bash
-ecosystems advisories lookup_advisories_by_purl --purl "invalid-purl"
+ecosystems advisories lookup_advisories --purl "invalid-purl"
 # Error: HTTP error: {"error":"Invalid PURL format"}
 ```
 
