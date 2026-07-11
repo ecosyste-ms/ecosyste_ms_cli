@@ -17,13 +17,13 @@ sbom = APICommandGenerator.create_api_group("sbom")
 @click.argument("url", required=True)
 @click.option(
     "--polling-interval",
-    type=float,
+    type=click.FloatRange(min=0.1),
     default=None,
     help="Polling interval in seconds. If set, the command will poll the job status until completion.",
 )
 @click.option(
     "--max-wait",
-    type=float,
+    type=click.FloatRange(min=0, min_open=True),
     default=DEFAULT_MAX_POLL_WAIT,
     help=f"Maximum seconds to poll before giving up. Default is {DEFAULT_MAX_POLL_WAIT}.",
 )

@@ -645,7 +645,7 @@ class TestPackagesCommands:
 
         result = self.runner.invoke(
             self.packages_group,
-            ["get_registry_package_code_meta", "lodash", "npm"],
+            ["get_registry_package_code_meta", "npm", "lodash"],
             obj={"timeout": 20, "format": "json"},
         )
 
@@ -727,7 +727,7 @@ class TestPackagesCommands:
 
         result = self.runner.invoke(
             self.packages_group,
-            ["get_registry_package_version_code_meta", "4.17.21", "lodash", "npm"],
+            ["get_registry_package_version_code_meta", "npm", "lodash", "4.17.21"],
             obj={"timeout": 20, "format": "json"},
         )
 

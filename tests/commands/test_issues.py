@@ -87,7 +87,7 @@ class TestIssuesCommands:
 
         result = self.runner.invoke(
             self.issues_group,
-            ["get_host_repository_labels", "octocat/hello-world", "GitHub"],
+            ["get_host_repository_labels", "GitHub", "octocat/hello-world"],
             obj={"timeout": 20, "format": "json", "domain": None},
         )
 
@@ -142,7 +142,7 @@ class TestIssuesCommands:
 
         result = self.runner.invoke(
             self.issues_group,
-            ["get_host_owner", "octocat", "GitHub"],
+            ["get_host_owner", "GitHub", "octocat"],
             obj={"timeout": 20, "format": "json", "domain": None},
         )
 
@@ -170,7 +170,7 @@ class TestIssuesCommands:
 
         result = self.runner.invoke(
             self.issues_group,
-            ["get_host_owner_maintainers", "octocat", "GitHub"],
+            ["get_host_owner_maintainers", "GitHub", "octocat"],
             obj={"timeout": 20, "format": "json", "domain": None},
         )
 
@@ -225,7 +225,7 @@ class TestIssuesCommands:
 
         result = self.runner.invoke(
             self.issues_group,
-            ["get_host_author", "author1", "GitHub"],
+            ["get_host_author", "GitHub", "author1"],
             obj={"timeout": 20, "format": "json", "domain": None},
         )
 
@@ -253,8 +253,8 @@ class TestIssuesCommands:
             self.issues_group,
             [
                 "get_host_repository_issues",
-                "octocat/hello-world",
                 "GitHub",
+                "octocat/hello-world",
                 "--state",
                 "open",
                 "--label",

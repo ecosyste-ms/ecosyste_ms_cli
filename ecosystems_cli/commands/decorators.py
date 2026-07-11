@@ -22,6 +22,10 @@ def common_options(f):
     f = click.option(
         "--timeout",
         default=DEFAULT_TIMEOUT,
+        # Bounded so nonsensical values fail as usage errors instead of
+        # surfacing internals from the HTTP stack (0/negative) or crashing
+        # on timestamp conversion (astronomically large).
+        type=click.IntRange(min=1, max=86400),
         help=f"Timeout in seconds for API requests. Default is {DEFAULT_TIMEOUT} seconds.",
     )(f)
     f = click.option(

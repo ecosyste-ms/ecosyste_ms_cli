@@ -17,6 +17,7 @@ from ecosystems_cli.exceptions import (
     APITimeoutError,
     InvalidAPIError,
     InvalidOperationError,
+    MissingParameterError,
 )
 from ecosystems_cli.openapi_client import OpenAPIClientFactory, get_client
 
@@ -257,6 +258,21 @@ class TestCallRequestBuilding:
 
         url = call_factory._session.request.call_args.kwargs["url"]
         assert url == "https://test.example.com/api/v1/items/a%2Fb%20c"
+
+    @pytest.mark.parametrize("empty", ["", "   "])
+    def test_empty_path_param_rejected(self, call_factory, empty):
+        """An empty path segment silently changes the route (/items/{id} with
+        id='' hits the /items/ collection endpoint), so it must be rejected
+        before any request is made."""
+        with pytest.raises(MissingParameterError, match="itemId"):
+            call_factory.call("test", "getItem", path_params={"itemId": empty})
+        call_factory._session.request.assert_not_called()
+
+    def test_unfilled_path_placeholder_rejected(self, call_factory):
+        """A literal '{itemId}' must never reach the server."""
+        with pytest.raises(MissingParameterError, match="itemId"):
+            call_factory.call("test", "getItem")
+        call_factory._session.request.assert_not_called()
 
     def test_base_url_override_is_used(self, call_factory):
         call_factory._session.request.return_value = _make_response(json_data={})

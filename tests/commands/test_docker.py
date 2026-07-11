@@ -116,7 +116,7 @@ class TestDockerCommands:
 
         result = self.runner.invoke(
             self.docker_group,
-            ["get_package_version", "1.25.0", "nginx"],
+            ["get_package_version", "nginx", "1.25.0"],
             obj={"timeout": 20, "format": "json"},
         )
 
@@ -197,7 +197,7 @@ class TestDockerCommands:
 
         result = self.runner.invoke(
             self.docker_group,
-            ["usage_package", "react", "npm"],
+            ["usage_package", "npm", "react"],
             obj={"timeout": 20, "format": "json"},
         )
 

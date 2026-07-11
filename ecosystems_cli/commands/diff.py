@@ -18,13 +18,13 @@ diff = APICommandGenerator.create_api_group("diff")
 @click.argument("url_2", required=True)
 @click.option(
     "--polling-interval",
-    type=float,
+    type=click.FloatRange(min=0.1),
     default=None,
     help="Polling interval in seconds. If set, the command will poll the job status until completion.",
 )
 @click.option(
     "--max-wait",
-    type=float,
+    type=click.FloatRange(min=0, min_open=True),
     default=DEFAULT_MAX_POLL_WAIT,
     help=f"Maximum seconds to poll before giving up. Default is {DEFAULT_MAX_POLL_WAIT}.",
 )

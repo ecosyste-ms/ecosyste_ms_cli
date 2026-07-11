@@ -212,12 +212,13 @@ class TestDiffCommands:
         """A job that never reaches a terminal status must stop at --max-wait, not hang."""
         create_response = {"id": "stuck-1", "status": "pending", "location": "https://diff.ecosyste.ms/api/v1/jobs/stuck-1"}
         processing = {"id": "stuck-1", "status": "processing"}
-        # max-wait 0 means the deadline is reached after the first status check.
+        # A microscopic max-wait (0 itself is rejected by FloatRange) means
+        # the deadline is reached after the first status check.
         mock_api_factory.call.side_effect = [create_response, processing, processing, processing]
 
         result = self.runner.invoke(
             self.diff_group,
-            ["create_job", "url1", "url2", "--polling-interval", "1", "--max-wait", "0"],
+            ["create_job", "url1", "url2", "--polling-interval", "1", "--max-wait", "0.000001"],
             obj={"timeout": 20, "format": "json"},
         )
 

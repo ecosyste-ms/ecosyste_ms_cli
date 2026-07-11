@@ -60,9 +60,14 @@ def build_base_url(domain: Optional[str], api_name: str) -> Optional[str]:
     if domain.startswith("http://"):
         raise ValueError(f"Insecure HTTP domain rejected: {domain}. Use HTTPS instead.")
 
-    # If domain already includes protocol, use as-is
-    if domain.startswith("https://"):
-        return domain
-
-    # Otherwise, assume HTTPS and add /api/v1 path
-    return f"https://{domain}/api/v1"
+    # Normalize: an https:// prefix and trailing slashes are cosmetic. A bare
+    # host gets the standard /api/v1 path appended ("https://host" used as-is
+    # previously produced pathless URLs that only returned redirects); an
+    # explicit path is respected verbatim (e.g. a mirror under /custom/api).
+    host = domain[len("https://") :] if domain.startswith("https://") else domain
+    host = host.strip().rstrip("/")
+    if not host:
+        raise ValueError(f"Invalid domain: {domain!r}")
+    if "/" in host:
+        return f"https://{host}"
+    return f"https://{host}/api/v1"

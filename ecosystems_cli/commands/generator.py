@@ -109,7 +109,13 @@ class APICommandGenerator:
                 update_context(ctx, timeout, format, domain, mailto)
                 execute_api_call(ctx, api_name, operation_id=op_id, call_args=args, call_kwargs=kwargs, body_keys=body_keys)
 
-            for decorator in reversed(click_decorators):
+            # command_impl is already a click.Command here, so each decorator
+            # APPENDS its parameter to command.params in application order.
+            # Iterating forward therefore preserves the OpenAPI spec order —
+            # positional arguments must match the URL path order
+            # (/hosts/{host}/... => HOSTNAME first). reversed() here produced
+            # REPOSITORYNAME HOSTNAME usage, inverted from the API path.
+            for decorator in click_decorators:
                 command_impl = decorator(command_impl)
 
             return command_impl
