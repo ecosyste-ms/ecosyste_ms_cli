@@ -130,3 +130,19 @@ class TestVersionOption:
         result = runner.invoke(main, ["--version"])
         assert result.exit_code == 0
         assert __version__ in result.output
+
+
+class TestPaginationValidation:
+    """page/per_page are validated client-side instead of causing server 500s."""
+
+    def test_per_page_zero_rejected_on_generated_command(self, runner):
+        result = runner.invoke(main, ["packages", "get_registries", "--per-page", "0"])
+        assert result.exit_code == 2
+
+    def test_page_negative_rejected_on_generated_command(self, runner):
+        result = runner.invoke(main, ["docker", "get_packages", "--page", "-5"])
+        assert result.exit_code == 2
+
+    def test_per_page_negative_rejected_on_manual_advisories_command(self, runner):
+        result = runner.invoke(main, ["advisories", "get_advisories", "--per-page", "-1"])
+        assert result.exit_code == 2
