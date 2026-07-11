@@ -22,7 +22,16 @@ class APIConnectionError(APIError):
 class APITimeoutError(APIError):
     """Raised when an API request times out."""
 
-    pass
+    def __init__(self, timeout=None):
+        self.timeout = timeout
+        # str(exception) is shown to the user verbatim; a bare timeout value
+        # would render as the meaningless "Error: 20".
+        if timeout is not None:
+            unit = "second" if timeout == 1 else "seconds"
+            message = f"Request timed out after {timeout} {unit}"
+        else:
+            message = "Request timed out"
+        super().__init__(message)
 
 
 class APIHTTPError(APIError):

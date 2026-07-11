@@ -71,7 +71,11 @@ class TestResolveCommands:
     @mock.patch("ecosystems_cli.helpers.job_polling.api_factory")
     @mock.patch("ecosystems_cli.helpers.job_polling.print_output")
     def test_create_job_with_ecosystem(self, mock_print_output, mock_api_factory):
-        """Test creating a resolve job with --ecosystem instead of a registry argument."""
+        """--ecosystem is mapped to its canonical registry and sent as `registry`.
+
+        The server silently ignores an `ecosystem` query parameter (the job
+        completes instantly with empty results), so the CLI must translate.
+        """
         mock_api_factory.call.return_value = {
             "id": "test-resolve-789",
             "status": "pending",
@@ -89,12 +93,29 @@ class TestResolveCommands:
             "resolve",
             "createJob",
             path_params={},
-            query_params={"package_name": "express", "ecosystem": "npm"},
+            query_params={"package_name": "express", "registry": "npmjs.org"},
             timeout=mock.ANY,
             mailto=mock.ANY,
             base_url=mock.ANY,
         )
         mock_print_output.assert_called_once()
+
+    @mock.patch("ecosystems_cli.helpers.job_polling.api_factory")
+    @mock.patch("ecosystems_cli.helpers.job_polling.print_output")
+    def test_create_job_registry_argument_wins_over_ecosystem(self, mock_print_output, mock_api_factory):
+        """An explicit REGISTRY argument wins over --ecosystem."""
+        mock_api_factory.call.return_value = {"id": "j1", "status": "pending"}
+
+        result = self.runner.invoke(
+            self.resolve_group,
+            ["create_job", "rails", "gem.coop", "--ecosystem", "gem"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        query = mock_api_factory.call.call_args.kwargs["query_params"]
+        assert query["registry"] == "gem.coop"
+        assert "ecosystem" not in query
 
     def test_create_job_requires_registry_or_ecosystem(self):
         """Test that omitting both REGISTRY and --ecosystem is a usage error."""

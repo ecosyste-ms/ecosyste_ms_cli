@@ -108,6 +108,23 @@ class TestAdvisoriesCommands:
         mock_print_error.assert_called_once_with("Unexpected error: Advisory not found", console=mock.ANY)
 
     @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    def test_api_error_goes_to_stderr_not_stdout(self, mock_api_factory):
+        """Error panels are diagnostics: stderr only, so piped stdout stays clean."""
+        from ecosystems_cli.exceptions import APINotFoundError
+
+        mock_api_factory.call.side_effect = APINotFoundError('Not found: {"error":"not found"}')
+
+        result = self.runner.invoke(
+            self.advisories_group,
+            ["get_advisory", "nonexistent-uuid"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 1
+        assert "Error" not in result.stdout
+        assert "not found" in result.stderr
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
     @mock.patch("ecosystems_cli.commands.execution.print_output")
     def test_lookup_advisories_by_purl(self, mock_print_output, mock_api_factory):
         """Test looking up advisories by Package URL (PURL)."""

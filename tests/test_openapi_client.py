@@ -354,7 +354,9 @@ class TestCallErrorHandling:
 
     def test_timeout_raises_api_timeout(self, call_factory):
         call_factory._session.request.side_effect = requests.exceptions.Timeout()
-        with pytest.raises(APITimeoutError):
+        # The message must be human-readable, not str() of the raw timeout
+        # value (which rendered as the meaningless "Error: 5").
+        with pytest.raises(APITimeoutError, match="timed out after 5 seconds"):
             call_factory.call("test", "getTest", timeout=5)
 
     def test_connection_error_raises_api_connection_error(self, call_factory):
