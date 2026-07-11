@@ -1,5 +1,6 @@
 """API execution helpers for ecosystems CLI commands."""
 
+import sys
 from typing import Optional
 
 from rich.console import Console
@@ -110,5 +111,7 @@ def execute_api_call(
         print_output(result, ctx.obj.get("format", DEFAULT_OUTPUT_FORMAT), console=console)
     except EcosystemsCLIError as e:
         print_error(str(e), console=console)
+        sys.exit(1)
     except Exception as e:
         print_error(f"Unexpected error: {str(e)}", console=console)
+        sys.exit(1)

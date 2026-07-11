@@ -6,6 +6,7 @@ terminal status. ``submit_and_poll`` captures that single shared shape so each
 command only supplies its API name and create payload.
 """
 
+import sys
 import time
 from typing import Any, Dict, Optional
 
@@ -87,7 +88,8 @@ def submit_and_poll(
         if not job_id:
             print_error("No job ID in response, cannot poll for completion", console=console)
             print_output(result, output_format, console=console)
-            return
+            # sys.exit (SystemExit) escapes the except Exception handler below.
+            sys.exit(1)
 
         is_interactive = output_format == "table"
         if is_interactive:
@@ -139,11 +141,13 @@ def submit_and_poll(
                     console=console,
                 )
                 print_output(last_response, output_format, console=console)
-                return
+                sys.exit(1)
 
             time.sleep(polling_interval)
 
     except EcosystemsCLIError as e:
         print_error(str(e), console=console)
+        sys.exit(1)
     except Exception as e:
         print_error(f"Unexpected error: {str(e)}", console=console)
+        sys.exit(1)

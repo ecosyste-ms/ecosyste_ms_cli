@@ -254,7 +254,7 @@ class TestResolveCommands:
             obj={"timeout": 20, "format": "json"},
         )
 
-        assert result.exit_code == 0
+        assert result.exit_code == 1
 
         # Verify error was printed
         mock_print_error.assert_called_once_with("No job ID in response, cannot poll for completion", console=mock.ANY)
@@ -295,7 +295,7 @@ class TestResolveCommands:
 
         result = self.runner.invoke(self.resolve_group, ["create_job", "express", "npm"], obj={"timeout": 20, "format": "json"})
 
-        assert result.exit_code == 0
+        assert result.exit_code == 1
         mock_print_error.assert_called_once_with("Unexpected error: Network error", console=mock.ANY)
 
     @mock.patch("ecosystems_cli.helpers.job_polling.api_factory")
@@ -310,7 +310,7 @@ class TestResolveCommands:
             self.resolve_group, ["create_job", "express", "invalid-registry"], obj={"timeout": 20, "format": "json"}
         )
 
-        assert result.exit_code == 0
+        assert result.exit_code == 1
         mock_print_error.assert_called_once_with("Invalid registry", console=mock.ANY)
 
     @mock.patch("ecosystems_cli.commands.execution.api_factory")
