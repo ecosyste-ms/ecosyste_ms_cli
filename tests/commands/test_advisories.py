@@ -131,16 +131,40 @@ class TestAdvisoriesCommands:
 
         result = self.runner.invoke(
             self.advisories_group,
-            ["lookup_advisories_by_purl", "--purl", "pkg:npm/lodash@4.17.20"],
+            ["lookup_advisories", "--purl", "pkg:npm/lodash@4.17.20"],
             obj={"timeout": 20, "format": "json"},
         )
 
         assert result.exit_code == 0
         mock_api_factory.call.assert_called_once_with(
             "advisories",
-            "lookupAdvisoriesByPurl",
+            "lookupAdvisories",
             path_params={},
             query_params={"purl": "pkg:npm/lodash@4.17.20"},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+        )
+        mock_print_output.assert_called_once()
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_lookup_advisories_by_repository_url(self, mock_print_output, mock_api_factory):
+        """Test looking up advisories by source repository URL."""
+        mock_api_factory.call.return_value = [{"uuid": "adv-456", "title": "Rails Advisory", "severity": "critical"}]
+
+        result = self.runner.invoke(
+            self.advisories_group,
+            ["lookup_advisories", "--repository-url", "https://github.com/rails/rails"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "advisories",
+            "lookupAdvisories",
+            path_params={},
+            query_params={"repository_url": "https://github.com/rails/rails"},
             timeout=mock.ANY,
             mailto=mock.ANY,
             base_url=mock.ANY,
@@ -153,9 +177,7 @@ class TestAdvisoriesCommands:
         """Test error handling for invalid PURL in lookup."""
         mock_api_factory.call.side_effect = Exception("Invalid PURL format")
 
-        result = self.runner.invoke(
-            self.advisories_group, ["lookup_advisories_by_purl", "--purl", "invalid-purl"], obj={"timeout": 20}
-        )
+        result = self.runner.invoke(self.advisories_group, ["lookup_advisories", "--purl", "invalid-purl"], obj={"timeout": 20})
 
         assert result.exit_code == 0
         mock_print_error.assert_called_once_with("Unexpected error: Invalid PURL format", console=mock.ANY)

@@ -25,7 +25,7 @@ advisories = APICommandGenerator.create_api_group("advisories")
 @click.option("--updated-after", type=str, default=None, help="filter by updated_at after given time")
 @click.option("--sort", type=str, default=None, help="field to order results by")
 @click.option("--order", type=str, default=None, help="direction to order results by")
-@click.option("--source", type=str, default=None, help="Source to filter by (e.g. github, erlef)")
+@click.option("--source", type=str, default=None, help="Source to filter by (e.g. github, erlef, cpansa)")
 @common_options
 @click.pass_context
 def get_advisories(
