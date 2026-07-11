@@ -146,3 +146,15 @@ class TestPaginationValidation:
     def test_per_page_negative_rejected_on_manual_advisories_command(self, runner):
         result = runner.invoke(main, ["advisories", "get_advisories", "--per-page", "-1"])
         assert result.exit_code == 2
+
+
+class TestBrokenPipe:
+    """A consumer closing the pipe (| head) is not an error."""
+
+    @mock.patch("ecosystems_cli.commands.execution.print_output", side_effect=BrokenPipeError)
+    def test_broken_pipe_exits_141_without_error_panel(self, _mock_print, runner, mock_api_client):
+        result = runner.invoke(main, ["advisories", "get_advisories_packages"])
+
+        # 141 = 128 + SIGPIPE, the conventional status for a closed pipe.
+        assert result.exit_code == 141
+        assert "Unexpected error" not in result.output + result.stderr

@@ -1,4 +1,6 @@
 import json
+import os
+import sys
 from datetime import datetime
 from typing import Any, List
 
@@ -89,6 +91,27 @@ class TableFieldSelector:
                 if field not in selected:
                     selected.append(field)
                     break
+
+
+def exit_on_broken_pipe():
+    """Exit quietly after a BrokenPipeError from writing to stdout.
+
+    A downstream consumer closing the pipe early (``ecosystems ... | head``)
+    is not an error: exit with the conventional SIGPIPE status (128 + 13)
+    instead of reporting "Unexpected error: [Errno 32] Broken pipe". stdout
+    is redirected to devnull first so the interpreter's shutdown flush does
+    not raise a second EPIPE.
+    """
+    # Only touch the file descriptor when stdout is the real process stdout;
+    # test runners (pytest capture, CliRunner) swap sys.stdout for wrappers
+    # whose descriptors must not be clobbered.
+    if sys.stdout is sys.__stdout__:
+        try:
+            devnull = os.open(os.devnull, os.O_WRONLY)
+            os.dup2(devnull, sys.stdout.fileno())
+        except (OSError, ValueError):
+            pass
+    sys.exit(141)
 
 
 # Machine-readable formats use the builtin print() rather than console.print().
