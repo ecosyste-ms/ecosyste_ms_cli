@@ -19,6 +19,15 @@ HELP_OVERRIDES = {
     ("issues", "getRegistries"): "list registries",
     ("packages", "getRegistries"): "list registries",
     ("repos", "getRegistries"): "list registries",
+    # The opencollective spec has no summary fields at all, so these commands
+    # would otherwise fall back to "Execute <operationId>" placeholders.
+    ("opencollective", "getCollectives"): "list open collective collectives",
+    ("opencollective", "getCollective"): "get a collective by id",
+    ("opencollective", "getCollectiveProjects"): "list projects of a collective",
+    ("opencollective", "getProjects"): "list open source projects with collectives",
+    ("opencollective", "getProject"): "get a project by id",
+    ("opencollective", "getProjectPackages"): "list packages of a project",
+    ("opencollective", "lookupProject"): "lookup a project by repository or package URL",
 }
 
 

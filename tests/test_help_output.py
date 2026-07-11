@@ -47,3 +47,13 @@ def test_get_registries_help_typo_overridden():
         result = runner.invoke(cli, [group, "--help"])
         assert "registies" not in result.output, group
         assert "list registries" in result.output, group
+
+
+def test_opencollective_help_has_no_placeholders():
+    """The opencollective spec has no summaries; HELP_OVERRIDES supplies real ones."""
+    runner = CliRunner()
+    result = runner.invoke(cli, ["opencollective", "--help"])
+    assert result.exit_code == 0
+    assert "Execute get" not in result.output
+    assert "Execute lookup" not in result.output
+    assert "list open collective collectives" in result.output
