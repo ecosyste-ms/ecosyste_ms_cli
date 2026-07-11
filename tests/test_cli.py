@@ -121,3 +121,12 @@ class TestErrorHandling:
 
         # Assert
         assert result.exit_code != 0
+
+
+class TestVersionOption:
+    """The conventional --version flag, alongside the version subcommand."""
+
+    def test_version_flag(self, runner):
+        result = runner.invoke(main, ["--version"])
+        assert result.exit_code == 0
+        assert __version__ in result.output
