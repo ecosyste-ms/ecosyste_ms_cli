@@ -321,6 +321,12 @@ class OpenAPIClientFactory:
             return
 
         error_text = response.text[:500] if response.text else ""
+        # Some services answer errors with a full HTML page (e.g. the parser
+        # API's 404). Dumping markup into the error panel is useless noise;
+        # summarize it instead.
+        content_type = response.headers.get("Content-Type", "") if response.headers else ""
+        if "text/html" in content_type.lower() or error_text.lstrip().lower().startswith(("<!doctype", "<html")):
+            error_text = f"HTTP {response.status_code} (server returned an HTML error page)"
 
         if response.status_code == 401:
             raise APIAuthenticationError(f"Unauthorized: {error_text}")

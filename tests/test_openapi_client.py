@@ -452,3 +452,30 @@ class TestCallResponseParsing:
         # Non-ISO strings are left untouched.
         assert result["name"] == "lodash"
         assert result["date_only"] == "2024-01-15"
+
+
+class TestHtmlErrorBodies:
+    """HTML error pages are summarized, not dumped into the error message."""
+
+    def test_html_404_body_summarized(self, call_factory):
+        html = "<!DOCTYPE html>\n<html lang='en'><head><title>Parser</title></head><body>...</body></html>"
+        call_factory._session.request.return_value = _make_response(
+            status_code=404, text=html, headers={"Content-Type": "text/html; charset=utf-8"}
+        )
+
+        with pytest.raises(APINotFoundError, match=r"HTML error page"):
+            call_factory.call("test", "getTest")
+
+    def test_html_detected_by_body_when_content_type_missing(self, call_factory):
+        call_factory._session.request.return_value = _make_response(status_code=500, text="<html><body>boom</body></html>")
+
+        with pytest.raises(APIServerError, match=r"HTML error page"):
+            call_factory.call("test", "getTest")
+
+    def test_json_error_body_still_shown_verbatim(self, call_factory):
+        call_factory._session.request.return_value = _make_response(
+            status_code=404, text='{"error":"not found"}', headers={"Content-Type": "application/json"}
+        )
+
+        with pytest.raises(APINotFoundError, match=r'\{"error":"not found"\}'):
+            call_factory.call("test", "getTest")
