@@ -57,3 +57,11 @@ def test_opencollective_help_has_no_placeholders():
     assert "Execute get" not in result.output
     assert "Execute lookup" not in result.output
     assert "list open collective collectives" in result.output
+
+
+def test_get_advisory_help_grammar():
+    """'get a advisories by uuid' (upstream spec) is overridden with correct grammar."""
+    runner = CliRunner()
+    result = runner.invoke(cli, ["advisories", "--help"])
+    assert "get an advisory by uuid" in result.output
+    assert "a advisories" not in result.output

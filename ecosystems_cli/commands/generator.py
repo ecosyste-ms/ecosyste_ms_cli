@@ -14,6 +14,7 @@ from ecosystems_cli.helpers.load_api_spec import load_api_spec
 # upstream (and checksummed), so spec typos and missing summaries are
 # corrected here instead of editing the spec files.
 HELP_OVERRIDES = {
+    ("advisories", "getAdvisory"): "get an advisory by uuid",
     ("commits", "getRegistries"): "list registries",
     ("dependabot", "getRegistries"): "list registries",
     ("issues", "getRegistries"): "list registries",
