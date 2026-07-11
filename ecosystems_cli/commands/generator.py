@@ -9,6 +9,18 @@ from ecosystems_cli.commands.decorators import common_options
 from ecosystems_cli.helpers.click_params import build_body_decorators, build_click_decorators
 from ecosystems_cli.helpers.load_api_spec import load_api_spec
 
+# Help-text overrides for auto-generated commands, keyed by
+# (api_name, operation_id). The OpenAPI specs are vendored verbatim from
+# upstream (and checksummed), so spec typos and missing summaries are
+# corrected here instead of editing the spec files.
+HELP_OVERRIDES = {
+    ("commits", "getRegistries"): "list registries",
+    ("dependabot", "getRegistries"): "list registries",
+    ("issues", "getRegistries"): "list registries",
+    ("packages", "getRegistries"): "list registries",
+    ("repos", "getRegistries"): "list registries",
+}
+
 
 class APICommandGenerator:
     """Generate CLI commands from OpenAPI specifications."""
@@ -61,7 +73,9 @@ class APICommandGenerator:
                         continue
 
                     command_name = APICommandGenerator.operation_id_to_command_name(operation_id)
-                    description = operation.get("summary", f"Execute {operation_id}")
+                    description = HELP_OVERRIDES.get((api_name, operation_id)) or operation.get(
+                        "summary", f"Execute {operation_id}"
+                    )
                     parameters = operation.get("parameters", [])
                     request_body = operation.get("requestBody")
 

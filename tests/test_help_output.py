@@ -38,3 +38,12 @@ def test_subcommand_help_includes_global_options():
     assert "--timeout" in result.output
     assert "--format" in result.output
     assert "--domain" in result.output
+
+
+def test_get_registries_help_typo_overridden():
+    """The upstream spec's 'list registies' typo is corrected via HELP_OVERRIDES."""
+    runner = CliRunner()
+    for group in ("commits", "dependabot", "issues", "packages", "repos"):
+        result = runner.invoke(cli, [group, "--help"])
+        assert "registies" not in result.output, group
+        assert "list registries" in result.output, group
