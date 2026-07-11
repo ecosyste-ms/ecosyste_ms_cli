@@ -23,6 +23,7 @@ JSON_SYNTAX = "json"
 MAX_SELECTED_FIELDS = 2
 DEFAULT_TABLE_TITLE = "API Response"
 TABLE_HEADER_STYLE = "bold cyan"
+EMPTY_RESULTS_MESSAGE = "No results"
 
 # Rich Console Styles
 STYLE_BOLD_CYAN = "bold cyan"

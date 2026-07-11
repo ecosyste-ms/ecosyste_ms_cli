@@ -7,6 +7,7 @@ from rich.console import Console
 from ecosystems_cli.constants import (
     DEFAULT_OUTPUT_FORMAT,
     DEFAULT_TABLE_TITLE,
+    EMPTY_RESULTS_MESSAGE,
     MAX_SELECTED_FIELDS,
     PRIORITY_FIELDS,
     TABLE_HEADER_STYLE,
@@ -99,24 +100,54 @@ def _format_json(data: Any, console: Console) -> None:
     print(json.dumps(data, cls=DateTimeEncoder))
 
 
+def _escape_tsv(value: Any) -> str:
+    """Escape tabs and newlines so each TSV record stays on one physical line.
+
+    Field values (e.g. advisory descriptions) can embed tabs and newlines,
+    which would fragment a record across lines and break column counts.
+    Backslash is escaped first so the encoding stays unambiguous (the same
+    convention as e.g. Postgres COPY: \\t, \\n, \\r).
+    """
+    return str(value).replace("\\", "\\\\").replace("\t", "\\t").replace("\n", "\\n").replace("\r", "\\r")
+
+
+def _tsv_cell(value: Any) -> str:
+    """Render one TSV cell: TSV conventions instead of Python literals.
+
+    Nulls become empty cells and booleans lowercase true/false, so TSV
+    consumers do not have to special-case str(None)/str(True). Everything
+    else goes through the shared format_value (which keeps Python-style
+    rendering for the human-facing table output).
+    """
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return format_value(value)
+
+
 def _format_tsv(data: Any, console: Console) -> None:
     """Format and print data as TSV (Tab-Separated Values)."""
-    if isinstance(data, list) and len(data) > 0:
+    if isinstance(data, list):
+        if len(data) == 0:
+            # An empty result set has no records to derive columns from;
+            # emit nothing rather than a fabricated "value/[]" row.
+            return
         if all(isinstance(item, dict) for item in data):
             headers = list(data[0].keys())
-            print("\t".join(headers))
+            print("\t".join(_escape_tsv(h) for h in headers))
             for item in data:
-                print("\t".join(str(format_value(item.get(h, ""))) for h in headers))
+                print("\t".join(_escape_tsv(_tsv_cell(item.get(h, ""))) for h in headers))
         else:
             # A list of scalars (e.g. package names) has no columns; emit one
             # value per line under a single header.
             print("value")
             for item in data:
-                print(str(format_value(item)))
+                print(_escape_tsv(_tsv_cell(item)))
     else:
         flat_data = flatten_dict(data) if isinstance(data, dict) else {"value": str(data)}
-        print("\t".join(flat_data.keys()))
-        print("\t".join(str(v) for v in flat_data.values()))
+        print("\t".join(_escape_tsv(k) for k in flat_data.keys()))
+        print("\t".join(_escape_tsv(_tsv_cell(v)) for v in flat_data.values()))
 
 
 def _format_jsonl(data: Any, console: Console) -> None:
@@ -160,6 +191,9 @@ def _format_table(data: Any, console: Console) -> None:
         for item in data:
             table.add_row(format_value(item))
         console.print(table)
+    elif isinstance(data, list):
+        # An empty result set: say so instead of printing a bare "[]".
+        console.print(EMPTY_RESULTS_MESSAGE)
     elif isinstance(data, dict):
         # Create a key-value table for dict data
         table = Table(title=DEFAULT_TABLE_TITLE, show_header=True, header_style=TABLE_HEADER_STYLE)
