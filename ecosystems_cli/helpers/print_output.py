@@ -21,7 +21,9 @@ class DateTimeEncoder(json.JSONEncoder):
 
     def default(self, obj):
         if isinstance(obj, datetime):
-            return obj.isoformat()
+            # UTC datetimes serialize with the API's original "Z" designator
+            # rather than "+00:00", staying close to the upstream payload.
+            return obj.isoformat().replace("+00:00", "Z")
         return super().default(obj)
 
 

@@ -42,8 +42,14 @@ from ecosystems_cli.exceptions import (
 # handling) runs only on datetime-shaped strings rather than every string in a
 # response. It is intentionally a superset of the formats below -- non-matching
 # strings (names, URLs, version numbers, free text) are returned untouched.
+# The bool marks Z-suffixed (UTC) formats: those parse to timezone-aware
+# datetimes so the upstream timezone designator survives re-serialization.
 _ISO_DATETIME_RE = re.compile(r"^\d{4}-\d{1,2}-\d{1,2}T\d{1,2}:\d{1,2}:\d{1,2}(?:\.\d+)?Z?$")
-_DATETIME_FORMATS = ("%Y-%m-%dT%H:%M:%S.%fZ", "%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%dT%H:%M:%S")
+_DATETIME_FORMATS = (
+    ("%Y-%m-%dT%H:%M:%S.%fZ", True),
+    ("%Y-%m-%dT%H:%M:%SZ", True),
+    ("%Y-%m-%dT%H:%M:%S", False),
+)
 
 
 class OpenAPIClientFactory:
@@ -407,9 +413,10 @@ class OpenAPIClientFactory:
             # through here and are returned as-is).
             if not _ISO_DATETIME_RE.match(obj):
                 return obj
-            for fmt in _DATETIME_FORMATS:
+            for fmt, is_utc in _DATETIME_FORMATS:
                 try:
-                    return datetime.strptime(obj, fmt)
+                    parsed = datetime.strptime(obj, fmt)
+                    return parsed.replace(tzinfo=timezone.utc) if is_utc else parsed
                 except ValueError:
                     continue
             return obj

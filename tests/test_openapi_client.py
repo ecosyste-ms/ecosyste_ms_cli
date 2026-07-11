@@ -479,3 +479,20 @@ class TestHtmlErrorBodies:
 
         with pytest.raises(APINotFoundError, match=r'\{"error":"not found"\}'):
             call_factory.call("test", "getTest")
+
+
+class TestTimezonePreservation:
+    """Z-suffixed API timestamps stay UTC-aware end to end (bug: 'Z' dropped)."""
+
+    def setup_method(self):
+        self.factory = OpenAPIClientFactory()
+
+    def test_z_suffixed_timestamps_are_utc_aware(self):
+        from datetime import timezone
+
+        parsed = self.factory._convert_dates("2022-04-04T15:19:23.081Z")
+        assert parsed.tzinfo == timezone.utc
+
+    def test_zoneless_timestamps_stay_naive(self):
+        parsed = self.factory._convert_dates("2022-04-04T15:19:23")
+        assert parsed.tzinfo is None

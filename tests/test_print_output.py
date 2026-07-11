@@ -351,3 +351,14 @@ def test_table_long_values_fold_instead_of_truncate():
     assert "…" not in out
     # The full uuid tail survives (possibly split across folded lines).
     assert "9aaaaaaaaaaa" in out.replace("\n", "").replace(" ", "").replace("│", "")
+
+
+def test_json_utc_datetime_serializes_with_z_suffix(capsys):
+    """UTC timestamps keep a timezone designator in JSON output ('Z', not naive)."""
+    from datetime import datetime, timezone
+
+    data = {"created_at": datetime(2022, 4, 4, 15, 19, 23, 81000, tzinfo=timezone.utc)}
+    print_output(data, format_type="json", console=Console(width=80))
+
+    out = capsys.readouterr().out
+    assert '"2022-04-04T15:19:23.081000Z"' in out
