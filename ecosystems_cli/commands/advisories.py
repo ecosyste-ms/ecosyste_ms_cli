@@ -19,8 +19,8 @@ advisories = APICommandGenerator.create_api_group("advisories")
 @click.option("--package-name", type=str, default=None, help="Package to filter by")
 @click.option("--severity", type=str, default=None, help="Severity to filter by")
 @click.option("--repository-url", type=str, default=None, help="Repository URL to filter by")
-@click.option("--page", type=int, default=None, help="pagination page number")
-@click.option("--per-page", type=int, default=None, help="Number of records to return")
+@click.option("--page", type=click.IntRange(min=1), default=None, help="pagination page number")
+@click.option("--per-page", type=click.IntRange(min=1), default=None, help="Number of records to return")
 @click.option("--created-after", type=str, default=None, help="filter by created_at after given time")
 @click.option("--updated-after", type=str, default=None, help="filter by updated_at after given time")
 @click.option("--sort", type=str, default=None, help="field to order results by")
@@ -90,3 +90,35 @@ def get_advisories(
     )
 
     execute_api_call(ctx, "advisories", operation_id="getAdvisories", call_args=(), call_kwargs=kwargs)
+
+
+@override_auto_command(
+    advisories,
+    "lookup_advisories",
+    help="lookup advisories by Package URL (PURL) or repository URL (one of the two is required)",
+)
+@click.option("--purl", type=str, default=None, help="Package URL (PURL). Example: pkg:npm/lodash@4.17.20")
+@click.option("--repository-url", type=str, default=None, help="Source repository URL. Example: https://github.com/rails/rails")
+@common_options
+@click.pass_context
+def lookup_advisories(
+    ctx,
+    timeout: int,
+    format: str,
+    domain: Optional[str],
+    mailto: Optional[str],
+    purl: Optional[str],
+    repository_url: Optional[str],
+):
+    """Lookup advisories by PURL or repository URL.
+
+    The API requires one of purl/repository_url; validate locally so the
+    mistake is a usage error instead of a doomed network round-trip.
+    """
+    update_context(ctx, timeout, format, domain, mailto)
+
+    if not purl and not repository_url:
+        raise click.UsageError("One of --purl or --repository-url is required.")
+
+    kwargs = build_kwargs(purl=purl, repository_url=repository_url)
+    execute_api_call(ctx, "advisories", operation_id="lookupAdvisories", call_args=(), call_kwargs=kwargs)

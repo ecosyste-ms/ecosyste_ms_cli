@@ -8,13 +8,13 @@ console = Console()
 
 
 @click.command()
-@click.option("--host", default="localhost", help="Host to bind the MCP server to.")
-@click.option("--port", default=None, type=int, help="Port to bind the MCP server to (for HTTP transport).")
+@click.option("--host", default="localhost", help="Host to bind the MCP server to. Default is localhost.")
+@click.option("--port", default=None, type=int, help="Port to bind the MCP server to (for HTTP transport). Default is unset.")
 @click.option(
     "--transport",
     type=click.Choice(["stdio", "http"]),
     default="stdio",
-    help="Transport protocol to use (stdio for standard I/O, http for HTTP server).",
+    help="Transport protocol to use (stdio for standard I/O, http for HTTP server). Default is stdio.",
 )
 def mcp(host, port, transport):
     """Start an MCP (Model Context Protocol) server providing Ecosystems CLI functionality.

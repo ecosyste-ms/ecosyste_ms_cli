@@ -16,7 +16,7 @@ from ecosystems_cli.constants import DEFAULT_MAX_POLL_WAIT, DEFAULT_OUTPUT_FORMA
 from ecosystems_cli.exceptions import EcosystemsCLIError
 from ecosystems_cli.helpers.get_domain import build_base_url, get_domain_with_precedence
 from ecosystems_cli.helpers.print_error import print_error
-from ecosystems_cli.helpers.print_output import print_output
+from ecosystems_cli.helpers.print_output import exit_on_broken_pipe, print_output
 from ecosystems_cli.openapi_client import _factory as api_factory
 
 console = Console()
@@ -152,6 +152,9 @@ def submit_and_poll(
     except EcosystemsCLIError as e:
         print_error(str(e), console=err_console)
         sys.exit(1)
+    except BrokenPipeError:
+        # The consumer closed the pipe (e.g. `... | head`): not an error.
+        exit_on_broken_pipe()
     except Exception as e:
         print_error(f"Unexpected error: {str(e)}", console=err_console)
         sys.exit(1)

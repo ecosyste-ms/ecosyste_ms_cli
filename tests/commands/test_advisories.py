@@ -372,3 +372,34 @@ class TestAdvisoriesCommands:
             base_url=mock.ANY,
         )
         mock_print_output.assert_called_once()
+
+
+class TestLookupAdvisoriesValidation:
+    """One of --purl/--repository-url is required, validated locally."""
+
+    def setup_method(self):
+        self.runner = CliRunner()
+        from ecosystems_cli.commands.advisories import advisories
+
+        self.advisories_group = advisories
+
+    def test_neither_purl_nor_repository_url_is_usage_error(self):
+        result = self.runner.invoke(self.advisories_group, ["lookup_advisories"], obj={"timeout": 20, "format": "json"})
+
+        assert result.exit_code == 2
+        assert "One of --purl or --repository-url is required." in result.output + result.stderr
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_both_purl_and_repository_url_forwarded(self, mock_print_output, mock_api_factory):
+        mock_api_factory.call.return_value = []
+
+        result = self.runner.invoke(
+            self.advisories_group,
+            ["lookup_advisories", "--purl", "pkg:npm/lodash", "--repository-url", "https://github.com/x/y"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        query = mock_api_factory.call.call_args.kwargs["query_params"]
+        assert query == {"purl": "pkg:npm/lodash", "repository_url": "https://github.com/x/y"}

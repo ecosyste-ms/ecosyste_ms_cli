@@ -1,4 +1,6 @@
 import json
+import os
+import sys
 from datetime import datetime
 from typing import Any, List
 
@@ -21,7 +23,9 @@ class DateTimeEncoder(json.JSONEncoder):
 
     def default(self, obj):
         if isinstance(obj, datetime):
-            return obj.isoformat()
+            # UTC datetimes serialize with the API's original "Z" designator
+            # rather than "+00:00", staying close to the upstream payload.
+            return obj.isoformat().replace("+00:00", "Z")
         return super().default(obj)
 
 
@@ -87,6 +91,27 @@ class TableFieldSelector:
                 if field not in selected:
                     selected.append(field)
                     break
+
+
+def exit_on_broken_pipe():
+    """Exit quietly after a BrokenPipeError from writing to stdout.
+
+    A downstream consumer closing the pipe early (``ecosystems ... | head``)
+    is not an error: exit with the conventional SIGPIPE status (128 + 13)
+    instead of reporting "Unexpected error: [Errno 32] Broken pipe". stdout
+    is redirected to devnull first so the interpreter's shutdown flush does
+    not raise a second EPIPE.
+    """
+    # Only touch the file descriptor when stdout is the real process stdout;
+    # test runners (pytest capture, CliRunner) swap sys.stdout for wrappers
+    # whose descriptors must not be clobbered.
+    if sys.stdout is sys.__stdout__:
+        try:
+            devnull = os.open(os.devnull, os.O_WRONLY)
+            os.dup2(devnull, sys.stdout.fileno())
+        except (OSError, ValueError):
+            pass
+    sys.exit(141)
 
 
 # Machine-readable formats use the builtin print() rather than console.print().
@@ -174,10 +199,11 @@ def _format_table(data: Any, console: Console) -> None:
         headers = list(data[0].keys())
         selected_headers = _select_table_fields(headers)
 
-        # Create and populate table
+        # Create and populate table. overflow="fold" wraps long values (URLs,
+        # ids) onto extra lines instead of truncating them with an ellipsis.
         table = Table(title=DEFAULT_TABLE_TITLE, show_header=True, header_style=TABLE_HEADER_STYLE)
         for header in selected_headers:
-            table.add_column(header.capitalize())
+            table.add_column(header.capitalize(), overflow="fold")
 
         for item in data:
             table.add_row(*[format_value(item.get(h, "")) for h in selected_headers])
@@ -187,7 +213,7 @@ def _format_table(data: Any, console: Console) -> None:
         # A list of scalars (e.g. package names) has no columns; render each
         # value in a single column instead of assuming dict-shaped rows.
         table = Table(title=DEFAULT_TABLE_TITLE, show_header=True, header_style=TABLE_HEADER_STYLE)
-        table.add_column("Value")
+        table.add_column("Value", overflow="fold")
         for item in data:
             table.add_row(format_value(item))
         console.print(table)
@@ -195,10 +221,12 @@ def _format_table(data: Any, console: Console) -> None:
         # An empty result set: say so instead of printing a bare "[]".
         console.print(EMPTY_RESULTS_MESSAGE)
     elif isinstance(data, dict):
-        # Create a key-value table for dict data
+        # Create a key-value table for dict data. Values must fold rather
+        # than truncate: a create_job response's location URL carries the job
+        # id needed for get_job, which an ellipsis would destroy.
         table = Table(title=DEFAULT_TABLE_TITLE, show_header=True, header_style=TABLE_HEADER_STYLE)
         table.add_column("Field")
-        table.add_column("Value")
+        table.add_column("Value", overflow="fold")
 
         for key, value in data.items():
             table.add_row(key, format_value(value))

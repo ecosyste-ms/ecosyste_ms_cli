@@ -29,6 +29,7 @@ from ecosystems_cli.constants import (
 
 
 @click.group(invoke_without_command=True)
+@click.version_option(__version__, "--version", prog_name="ecosystems")
 @click.option(
     "--timeout",
     default=DEFAULT_TIMEOUT,

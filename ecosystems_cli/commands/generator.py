@@ -9,6 +9,28 @@ from ecosystems_cli.commands.decorators import common_options
 from ecosystems_cli.helpers.click_params import build_body_decorators, build_click_decorators
 from ecosystems_cli.helpers.load_api_spec import load_api_spec
 
+# Help-text overrides for auto-generated commands, keyed by
+# (api_name, operation_id). The OpenAPI specs are vendored verbatim from
+# upstream (and checksummed), so spec typos and missing summaries are
+# corrected here instead of editing the spec files.
+HELP_OVERRIDES = {
+    ("advisories", "getAdvisory"): "get an advisory by uuid",
+    ("commits", "getRegistries"): "list registries",
+    ("dependabot", "getRegistries"): "list registries",
+    ("issues", "getRegistries"): "list registries",
+    ("packages", "getRegistries"): "list registries",
+    ("repos", "getRegistries"): "list registries",
+    # The opencollective spec has no summary fields at all, so these commands
+    # would otherwise fall back to "Execute <operationId>" placeholders.
+    ("opencollective", "getCollectives"): "list open collective collectives",
+    ("opencollective", "getCollective"): "get a collective by id",
+    ("opencollective", "getCollectiveProjects"): "list projects of a collective",
+    ("opencollective", "getProjects"): "list open source projects with collectives",
+    ("opencollective", "getProject"): "get a project by id",
+    ("opencollective", "getProjectPackages"): "list packages of a project",
+    ("opencollective", "lookupProject"): "lookup a project by repository or package URL",
+}
+
 
 class APICommandGenerator:
     """Generate CLI commands from OpenAPI specifications."""
@@ -61,7 +83,9 @@ class APICommandGenerator:
                         continue
 
                     command_name = APICommandGenerator.operation_id_to_command_name(operation_id)
-                    description = operation.get("summary", f"Execute {operation_id}")
+                    description = HELP_OVERRIDES.get((api_name, operation_id)) or operation.get(
+                        "summary", f"Execute {operation_id}"
+                    )
                     parameters = operation.get("parameters", [])
                     request_body = operation.get("requestBody")
 

@@ -121,3 +121,40 @@ class TestErrorHandling:
 
         # Assert
         assert result.exit_code != 0
+
+
+class TestVersionOption:
+    """The conventional --version flag, alongside the version subcommand."""
+
+    def test_version_flag(self, runner):
+        result = runner.invoke(main, ["--version"])
+        assert result.exit_code == 0
+        assert __version__ in result.output
+
+
+class TestPaginationValidation:
+    """page/per_page are validated client-side instead of causing server 500s."""
+
+    def test_per_page_zero_rejected_on_generated_command(self, runner):
+        result = runner.invoke(main, ["packages", "get_registries", "--per-page", "0"])
+        assert result.exit_code == 2
+
+    def test_page_negative_rejected_on_generated_command(self, runner):
+        result = runner.invoke(main, ["docker", "get_packages", "--page", "-5"])
+        assert result.exit_code == 2
+
+    def test_per_page_negative_rejected_on_manual_advisories_command(self, runner):
+        result = runner.invoke(main, ["advisories", "get_advisories", "--per-page", "-1"])
+        assert result.exit_code == 2
+
+
+class TestBrokenPipe:
+    """A consumer closing the pipe (| head) is not an error."""
+
+    @mock.patch("ecosystems_cli.commands.execution.print_output", side_effect=BrokenPipeError)
+    def test_broken_pipe_exits_141_without_error_panel(self, _mock_print, runner, mock_api_client):
+        result = runner.invoke(main, ["advisories", "get_advisories_packages"])
+
+        # 141 = 128 + SIGPIPE, the conventional status for a closed pipe.
+        assert result.exit_code == 141
+        assert "Unexpected error" not in result.output + result.stderr

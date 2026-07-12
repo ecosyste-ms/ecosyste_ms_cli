@@ -336,3 +336,29 @@ class TestTableFieldSelector:
         assert isinstance(selected, list)
         assert len(selected) >= 1
         assert len(selected) <= 2
+
+
+def test_table_long_values_fold_instead_of_truncate():
+    """A job location URL must stay fully readable — an ellipsis destroys the id."""
+    from io import StringIO
+
+    url = "https://sbom.ecosyste.ms/api/v1/jobs/c3be4371-4c9a-49da-a3f9-9aaaaaaaaaaa"
+    output = StringIO()
+    console = Console(file=output, force_terminal=True, color_system=None, width=60)
+    print_output({"id": "c3be4371", "location": url}, format_type="table", console=console)
+
+    out = output.getvalue()
+    assert "…" not in out
+    # The full uuid tail survives (possibly split across folded lines).
+    assert "9aaaaaaaaaaa" in out.replace("\n", "").replace(" ", "").replace("│", "")
+
+
+def test_json_utc_datetime_serializes_with_z_suffix(capsys):
+    """UTC timestamps keep a timezone designator in JSON output ('Z', not naive)."""
+    from datetime import datetime, timezone
+
+    data = {"created_at": datetime(2022, 4, 4, 15, 19, 23, 81000, tzinfo=timezone.utc)}
+    print_output(data, format_type="json", console=Console(width=80))
+
+    out = capsys.readouterr().out
+    assert '"2022-04-04T15:19:23.081000Z"' in out

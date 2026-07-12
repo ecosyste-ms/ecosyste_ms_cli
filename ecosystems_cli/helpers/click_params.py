@@ -81,7 +81,13 @@ def build_click_decorators(parameters: List[dict]) -> List:
         elif param_in == "query":
             click_type = None
             if param_type == "integer":
-                click_type = int
+                # Pagination values are forwarded to the API verbatim, where
+                # zero/negative values produce opaque 500s; validate them
+                # client-side as positive integers.
+                if param_name in ("page", "per_page"):
+                    click_type = click.IntRange(min=1)
+                else:
+                    click_type = int
             elif param_type == "boolean":
                 click_type = bool
 
