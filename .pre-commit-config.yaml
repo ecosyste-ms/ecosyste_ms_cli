@@ -3,7 +3,11 @@ repos:
     rev: v4.5.0
     hooks:
       - id: trailing-whitespace
+        # The OpenAPI specs are vendored byte-for-byte from upstream and
+        # checksummed (checksums.sha256); whitespace fixers must not touch them.
+        exclude: ^ecosystems_cli/apis/.*\.(yaml|sha256)$
       - id: end-of-file-fixer
+        exclude: ^ecosystems_cli/apis/.*\.(yaml|sha256)$
       - id: check-yaml
       - id: check-added-large-files
 
