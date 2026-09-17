@@ -5,6 +5,7 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
+from mcp.types import CallToolRequestParams, ListToolsResult
 
 from ecosystems_cli.mcp_server import EcosystemsMCPServer
 
@@ -82,18 +83,63 @@ class TestEcosystemsMCPServer:
         ]
         assert mcp_server.apis == expected_apis
 
-    @pytest.mark.asyncio
     @patch("ecosystems_cli.mcp_server.load_api_spec")
-    async def test_list_tools(self, mock_load_spec, mcp_server, mock_api_spec):
-        """Test listing available tools."""
+    def test_list_tools(self, mock_load_spec, mcp_server, mock_api_spec):
+        """Each spec operation becomes a tool, plus a generic {api}_call per API."""
         mock_load_spec.return_value = mock_api_spec
 
-        # The handler is registered but not easily accessible for direct testing
-        # Instead, we'll test the underlying method behavior
+        tools = mcp_server._list_tools()
+        names = {t.name for t in tools}
 
-        # Test that the server was initialized
-        assert mcp_server.server is not None
-        assert mcp_server.server.name == "ecosystems-cli"
+        # One tool per operation, namespaced by API.
+        assert "repos_get_repository" in names
+        assert "packages_create_package" in names
+        # One generic passthrough tool per API, for every API.
+        assert {f"{api}_call" for api in mcp_server.apis} <= names
+
+        repo_tool = next(t for t in tools if t.name == "repos_get_repository")
+        assert repo_tool.description == "Get repository information"
+        assert set(repo_tool.input_schema["required"]) == {"host", "owner", "name"}
+
+    @patch("ecosystems_cli.mcp_server.load_api_spec")
+    def test_list_tools_skips_unloadable_spec(self, mock_load_spec, mcp_server):
+        """A spec that fails to load is logged and skipped, not fatal to the listing."""
+        mock_load_spec.side_effect = Exception("bad spec")
+
+        assert mcp_server._list_tools() == []
+
+    @pytest.mark.asyncio
+    @patch("ecosystems_cli.mcp_server.load_api_spec")
+    async def test_on_list_tools_wraps_result(self, mock_load_spec, mcp_server, mock_api_spec):
+        """The tools/list handler returns a ListToolsResult carrying the tool list."""
+        mock_load_spec.return_value = mock_api_spec
+
+        result = await mcp_server._on_list_tools(None, None)
+
+        assert isinstance(result, ListToolsResult)
+        assert {t.name for t in result.tools} == {t.name for t in mcp_server._list_tools()}
+
+    @pytest.mark.asyncio
+    @patch("ecosystems_cli.mcp_server.EcosystemsMCPServer._call_api")
+    async def test_on_call_tool_passes_name_and_arguments(self, mock_call_api, mcp_server):
+        """The tools/call handler forwards the request params to the router."""
+        mock_call_api.return_value = {"ok": True}
+
+        params = CallToolRequestParams(name="packages_call", arguments={"operation": "getRegistries"})
+        result = await mcp_server._on_call_tool(None, params)
+
+        mock_call_api.assert_awaited_once_with("packages", "getRegistries", {}, {}, {})
+        assert json.loads(result.content[0].text) == {"ok": True}
+
+    @pytest.mark.asyncio
+    @patch("ecosystems_cli.mcp_server.EcosystemsMCPServer._call_api")
+    async def test_on_call_tool_tolerates_absent_arguments(self, mock_call_api, mcp_server):
+        """arguments is optional in the protocol; a missing one is treated as empty."""
+        result = await mcp_server._on_call_tool(None, CallToolRequestParams(name="bogus"))
+
+        assert result.content[0].text == "Invalid tool name: bogus"
+        assert result.is_error is True
+        mock_call_api.assert_not_called()
 
     def test_build_input_schema(self, mcp_server):
         """Test building input schema from operation."""
@@ -201,7 +247,8 @@ class TestEcosystemsMCPServer:
         result = await mcp_server._call_tool("repos_getThing", {"host": "github.com", "page": 2, "unknown": "ignored"})
 
         mock_call_api.assert_awaited_once_with("repos", "getThing", {"host": "github.com"}, {"page": 2}, {})
-        assert json.loads(result[0].text) == {"ok": True}
+        assert json.loads(result.content[0].text) == {"ok": True}
+        assert result.is_error is False
 
     @pytest.mark.asyncio
     @patch("ecosystems_cli.mcp_server.load_api_spec")
@@ -227,7 +274,8 @@ class TestEcosystemsMCPServer:
         )
 
         mock_call_api.assert_awaited_once_with("packages", "getRegistryPackages", {}, {"page": 1}, {})
-        assert json.loads(result[0].text) == {"packages": []}
+        assert json.loads(result.content[0].text) == {"packages": []}
+        assert result.is_error is False
 
     @pytest.mark.asyncio
     @patch("ecosystems_cli.mcp_server.EcosystemsMCPServer._call_api")
@@ -235,7 +283,8 @@ class TestEcosystemsMCPServer:
         """An unknown API in a specific tool name is rejected without calling the API."""
         result = await mcp_server._call_tool("bogus_getThing", {})
 
-        assert result[0].text == "Unknown API: bogus"
+        assert result.content[0].text == "Unknown API: bogus"
+        assert result.is_error is True
         mock_call_api.assert_not_called()
 
     @pytest.mark.asyncio
@@ -244,7 +293,8 @@ class TestEcosystemsMCPServer:
         """An unknown API in the generic ``_call`` form is rejected too."""
         result = await mcp_server._call_tool("bogus_call", {"operation": "x"})
 
-        assert result[0].text == "Unknown API: bogus"
+        assert result.content[0].text == "Unknown API: bogus"
+        assert result.is_error is True
         mock_call_api.assert_not_called()
 
     @pytest.mark.asyncio
@@ -253,7 +303,8 @@ class TestEcosystemsMCPServer:
         """A tool name with no API/operation separator is rejected."""
         result = await mcp_server._call_tool("bogus", {})
 
-        assert result[0].text == "Invalid tool name: bogus"
+        assert result.content[0].text == "Invalid tool name: bogus"
+        assert result.is_error is True
         mock_call_api.assert_not_called()
 
     @pytest.mark.asyncio
@@ -264,17 +315,19 @@ class TestEcosystemsMCPServer:
 
         result = await mcp_server._call_tool("packages_call", {"operation": "x"})
 
-        assert result[0].text == "No data returned"
+        assert result.content[0].text == "No data returned"
+        assert result.is_error is False
 
     @pytest.mark.asyncio
     @patch("ecosystems_cli.mcp_server.EcosystemsMCPServer._call_api")
     async def test_call_tool_surfaces_errors_as_text(self, mock_call_api, mcp_server):
-        """Exceptions from the API call are caught and returned as error text, not raised."""
+        """Exceptions from the API call are caught and flagged as an error result, not raised."""
         mock_call_api.side_effect = Exception("boom")
 
         result = await mcp_server._call_tool("packages_call", {"operation": "x"})
 
-        assert result[0].text == "Error: boom"
+        assert result.content[0].text == "Error: boom"
+        assert result.is_error is True
 
     @pytest.mark.asyncio
     @patch("ecosystems_cli.mcp_server.api_factory")

@@ -4,13 +4,13 @@ import asyncio
 import json
 import logging
 import signal
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
-from mcp.server import Server
-from mcp.server.models import InitializationOptions
+from mcp.server.lowlevel import Server
 from mcp.server.stdio import stdio_server
-from mcp.types import ServerCapabilities, TextContent, Tool
+from mcp.types import CallToolRequestParams, CallToolResult, ListToolsResult, PaginatedRequestParams, TextContent, Tool
 
+from ecosystems_cli import __version__
 from ecosystems_cli.constants import DEFAULT_TIMEOUT
 from ecosystems_cli.exceptions import EcosystemsCLIError
 from ecosystems_cli.helpers.get_domain import build_base_url, get_domain_with_precedence
@@ -25,7 +25,6 @@ class EcosystemsMCPServer:
     """MCP server providing Ecosystems CLI functionality as tools."""
 
     def __init__(self):
-        self.server = Server("ecosystems-cli")
         # Must mirror the CLI command set (cli.COMMAND_REGISTRY); keep in sync.
         self.apis = [
             "advisories",
@@ -46,72 +45,83 @@ class EcosystemsMCPServer:
             "summary",
             "timeline",
         ]
-        self._register_handlers()
+        # mcp 2.x removed the @server.list_tools()/@server.call_tool() decorators;
+        # protocol handlers are supplied as constructor callbacks instead. The
+        # callbacks stay thin so the tool-building and routing logic below can be
+        # exercised without going through the protocol layer.
+        self.server = Server(
+            "ecosystems-cli",
+            version=__version__,
+            on_list_tools=self._on_list_tools,
+            on_call_tool=self._on_call_tool,
+        )
 
-    def _register_handlers(self):
-        """Register MCP protocol handlers."""
+    async def _on_list_tools(self, ctx: Any, params: Optional[PaginatedRequestParams]) -> ListToolsResult:
+        """Protocol handler for ``tools/list``. All tools are returned in a single page."""
+        return ListToolsResult(tools=self._list_tools())
 
-        @self.server.list_tools()
-        async def list_tools() -> List[Tool]:
-            """List all available tools from the Ecosystems APIs."""
-            tools = []
+    async def _on_call_tool(self, ctx: Any, params: CallToolRequestParams) -> CallToolResult:
+        """Protocol handler for ``tools/call``."""
+        return await self._call_tool(params.name, params.arguments or {})
 
-            for api in self.apis:
-                try:
-                    spec = load_api_spec(api)
-                    if not spec or "paths" not in spec:
-                        continue
+    def _list_tools(self) -> List[Tool]:
+        """Build the tool list from the vendored OpenAPI specs."""
+        tools = []
 
-                    # Create a tool for each operation
-                    for path, methods in spec["paths"].items():
-                        for method, operation in methods.items():
-                            if method in ["get", "post", "put", "delete", "patch"]:
-                                operation_id = operation.get("operationId")
-                                if not operation_id:
-                                    continue
-
-                                # Build tool description
-                                description = operation.get("summary", operation.get("description", ""))
-                                if not description:
-                                    description = f"{method.upper()} {path} on {api} API"
-
-                                # Build input schema
-                                input_schema = self._build_input_schema(operation)
-
-                                tools.append(
-                                    Tool(name=f"{api}_{operation_id}", description=description, inputSchema=input_schema)
-                                )
-
-                    # Add a generic call tool for each API
-                    tools.append(
-                        Tool(
-                            name=f"{api}_call",
-                            description=f"Call any operation on the {api} API directly",
-                            inputSchema={
-                                "type": "object",
-                                "properties": {
-                                    "operation": {"type": "string", "description": "The operation ID to call"},
-                                    "path_params": {"type": "object", "description": "Path parameters as a JSON object"},
-                                    "query_params": {"type": "object", "description": "Query parameters as a JSON object"},
-                                    "body": {"type": "object", "description": "Request body as a JSON object"},
-                                },
-                                "required": ["operation"],
-                            },
-                        )
-                    )
-
-                except Exception as e:
-                    logger.error(f"Error loading spec for {api}: {e}")
+        for api in self.apis:
+            try:
+                spec = load_api_spec(api)
+                if not spec or "paths" not in spec:
                     continue
 
-            return tools
+                # Create a tool for each operation
+                for path, methods in spec["paths"].items():
+                    for method, operation in methods.items():
+                        if method in ["get", "post", "put", "delete", "patch"]:
+                            operation_id = operation.get("operationId")
+                            if not operation_id:
+                                continue
 
-        @self.server.call_tool()
-        async def call_tool(name: str, arguments: Dict[str, Any]) -> List[TextContent]:
-            """Execute a tool call."""
-            return await self._call_tool(name, arguments)
+                            # Build tool description
+                            description = operation.get("summary", operation.get("description", ""))
+                            if not description:
+                                description = f"{method.upper()} {path} on {api} API"
 
-    async def _call_tool(self, name: str, arguments: Dict[str, Any]) -> List[TextContent]:
+                            # Build input schema
+                            input_schema = self._build_input_schema(operation)
+
+                            tools.append(Tool(name=f"{api}_{operation_id}", description=description, input_schema=input_schema))
+
+                # Add a generic call tool for each API
+                tools.append(
+                    Tool(
+                        name=f"{api}_call",
+                        description=f"Call any operation on the {api} API directly",
+                        input_schema={
+                            "type": "object",
+                            "properties": {
+                                "operation": {"type": "string", "description": "The operation ID to call"},
+                                "path_params": {"type": "object", "description": "Path parameters as a JSON object"},
+                                "query_params": {"type": "object", "description": "Query parameters as a JSON object"},
+                                "body": {"type": "object", "description": "Request body as a JSON object"},
+                            },
+                            "required": ["operation"],
+                        },
+                    )
+                )
+
+            except Exception as e:
+                logger.error(f"Error loading spec for {api}: {e}")
+                continue
+
+        return tools
+
+    @staticmethod
+    def _text_result(text: str, *, is_error: bool = False) -> CallToolResult:
+        """Wrap ``text`` as a tool result, flagging failures so clients can tell them apart."""
+        return CallToolResult(content=[TextContent(type="text", text=text)], is_error=is_error)
+
+    async def _call_tool(self, name: str, arguments: Dict[str, Any]) -> CallToolResult:
         """Route a tool call to the right API operation and return its result.
 
         Tool names are ``{api}_{operationId}`` plus a generic ``{api}_call`` per
@@ -119,6 +129,9 @@ class EcosystemsMCPServer:
         path vs query parameters; ``body`` is forwarded when the operation has a
         request body. The generic ``_call`` tool passes path/query/body through
         as given.
+
+        Failures are returned as results with ``is_error`` set rather than raised,
+        so the client sees the message instead of a transport-level error.
         """
         try:
             # Parse the tool name to get API and operation
@@ -126,7 +139,7 @@ class EcosystemsMCPServer:
                 # Generic call tool
                 api = name[:-5]  # Remove '_call' suffix
                 if api not in self.apis:
-                    return [TextContent(type="text", text=f"Unknown API: {api}")]
+                    return self._text_result(f"Unknown API: {api}", is_error=True)
                 operation = arguments.get("operation")
                 path_params = arguments.get("path_params", {})
                 query_params = arguments.get("query_params", {})
@@ -135,11 +148,11 @@ class EcosystemsMCPServer:
                 # Specific operation tool
                 parts = name.split("_", 1)
                 if len(parts) != 2:
-                    return [TextContent(type="text", text=f"Invalid tool name: {name}")]
+                    return self._text_result(f"Invalid tool name: {name}", is_error=True)
 
                 api, operation = parts
                 if api not in self.apis:
-                    return [TextContent(type="text", text=f"Unknown API: {api}")]
+                    return self._text_result(f"Unknown API: {api}", is_error=True)
 
                 # Extract parameters from arguments
                 path_params = {}
@@ -175,11 +188,11 @@ class EcosystemsMCPServer:
             # Format the result as JSON string
             result_text = json.dumps(result, cls=DateTimeEncoder) if result else "No data returned"
 
-            return [TextContent(type="text", text=result_text)]
+            return self._text_result(result_text)
 
         except Exception as e:
             logger.error(f"Error calling tool {name}: {e}")
-            return [TextContent(type="text", text=f"Error: {str(e)}")]
+            return self._text_result(f"Error: {str(e)}", is_error=True)
 
     def _build_input_schema(self, operation: Dict[str, Any]) -> Dict[str, Any]:
         """Build JSON schema for tool input from OpenAPI operation."""
@@ -243,13 +256,9 @@ class EcosystemsMCPServer:
     async def run(self):
         """Run the MCP server."""
         async with stdio_server() as (read_stream, write_stream):
-            await self.server.run(
-                read_stream,
-                write_stream,
-                InitializationOptions(
-                    server_name="ecosystems-cli", server_version="1.0.0", capabilities=ServerCapabilities(tools={})
-                ),
-            )
+            # Capabilities and server identity are derived from the Server itself,
+            # so the advertised version tracks the package instead of a literal.
+            await self.server.run(read_stream, write_stream, self.server.create_initialization_options())
 
 
 def run_mcp_server():
