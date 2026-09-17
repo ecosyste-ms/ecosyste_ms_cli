@@ -201,9 +201,64 @@ paths:
                       type: array
                       items:
                         "$ref": "#/components/schemas/PackageWithRegistry"
+  "/versions/lookup":
+    get:
+      summary: lookup versions by integrity hash
+      operationId: lookupVersions
+      tags:
+      - versions
+      parameters:
+      - name: integrity
+        in: query
+        description: integrity hash (SRI format)
+        required: false
+        schema:
+          type: string
+      - name: sha256
+        in: query
+        description: sha256 hash (hex)
+        required: false
+        schema:
+          type: string
+      - name: sha1
+        in: query
+        description: sha1 hash (hex)
+        required: false
+        schema:
+          type: string
+      - name: sha512
+        in: query
+        description: sha512 hash (hex)
+        required: false
+        schema:
+          type: string
+      - name: page
+        in: query
+        description: page number
+        required: false
+        schema:
+          type: integer
+      - name: per_page
+        in: query
+        description: Number of records to return
+        required: false
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/VersionLookup"
+        '400':
+          description: missing integrity parameter
   "/packages/lookup":
     get:
-      summary: lookup a package by repository URL, purl or ecosystem+name
+      summary: lookup a single package by repository URL, purl or ecosystem+name.
+        For multiple packages use POST /packages/bulk_lookup.
       operationId: lookupPackage
       tags:
       - packages
@@ -216,7 +271,7 @@ paths:
           type: string
       - name: purl
         in: query
-        description: package URL
+        description: single package URL. For multiple purls use POST /packages/bulk_lookup.
         required: false
         schema:
           type: string
@@ -468,7 +523,7 @@ paths:
                 "$ref": "#/components/schemas/KeywordWithPackages"
   "/registries":
     get:
-      summary: list registies
+      summary: list registries
       operationId: getRegistries
       tags:
       - registries
@@ -553,7 +608,7 @@ paths:
           type: string
       - name: purl
         in: query
-        description: package URL
+        description: single package URL. For multiple purls use POST /packages/bulk_lookup.
         required: false
         schema:
           type: string
@@ -2098,6 +2153,15 @@ components:
           type: array
           items:
             "$ref": "#/components/schemas/Dependency"
+    VersionLookup:
+      allOf:
+      - "$ref": "#/components/schemas/VersionWithDependencies"
+      - type: object
+        required:
+        - package
+        properties:
+          package:
+            "$ref": "#/components/schemas/PackageWithRegistry"
     VersionWithPackage:
       required:
       - id

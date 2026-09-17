@@ -48,8 +48,8 @@ class TestIssuesCommands:
 
     @mock.patch("ecosystems_cli.commands.execution.api_factory")
     @mock.patch("ecosystems_cli.commands.execution.print_output")
-    def test_get_registries(self, mock_print_output, mock_api_factory):
-        """Test getting registries."""
+    def test_get_hosts(self, mock_print_output, mock_api_factory):
+        """Test getting hosts."""
         mock_api_factory.call.return_value = [
             {"name": "github", "url": "https://github.com"},
             {"name": "gitlab", "url": "https://gitlab.com"},
@@ -57,14 +57,14 @@ class TestIssuesCommands:
 
         result = self.runner.invoke(
             self.issues_group,
-            ["get_registries", "--page", "1", "--per-page", "10"],
+            ["get_hosts", "--page", "1", "--per-page", "10"],
             obj={"timeout": 20, "format": "table", "domain": None},
         )
 
         assert result.exit_code == 0
         mock_api_factory.call.assert_called_once_with(
             "issues",
-            "getRegistries",
+            "getHosts",
             path_params={},
             query_params={
                 "page": 1,

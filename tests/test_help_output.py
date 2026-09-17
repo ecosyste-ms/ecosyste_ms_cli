@@ -41,12 +41,28 @@ def test_subcommand_help_includes_global_options():
 
 
 def test_get_registries_help_typo_overridden():
-    """The upstream spec's 'list registies' typo is corrected via HELP_OVERRIDES."""
+    """The upstream spec's 'list registies' typo is corrected via HELP_OVERRIDES.
+
+    Upstream renamed this operation to getHosts in the commits, issues and repos
+    specs (and fixed the typo there); dependabot and packages still expose it as
+    getRegistries, and dependabot still carries the typo.
+    """
     runner = CliRunner()
-    for group in ("commits", "dependabot", "issues", "packages", "repos"):
+    for group in ("dependabot", "packages"):
         result = runner.invoke(cli, [group, "--help"])
         assert "registies" not in result.output, group
         assert "list registries" in result.output, group
+
+
+def test_get_hosts_replaces_get_registries():
+    """commits, issues and repos expose /hosts as get_hosts, not get_registries."""
+    runner = CliRunner()
+    for group in ("commits", "issues", "repos"):
+        result = runner.invoke(cli, [group, "--help"])
+        assert result.exit_code == 0, group
+        assert "get_hosts" in result.output, group
+        assert "get_registries" not in result.output, group
+        assert "registies" not in result.output, group
 
 
 def test_opencollective_help_has_no_placeholders():

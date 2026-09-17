@@ -15,11 +15,8 @@ from ecosystems_cli.helpers.load_api_spec import load_api_spec
 # corrected here instead of editing the spec files.
 HELP_OVERRIDES = {
     ("advisories", "getAdvisory"): "get an advisory by uuid",
-    ("commits", "getRegistries"): "list registries",
     ("dependabot", "getRegistries"): "list registries",
-    ("issues", "getRegistries"): "list registries",
     ("packages", "getRegistries"): "list registries",
-    ("repos", "getRegistries"): "list registries",
     # The opencollective spec has no summary fields at all, so these commands
     # would otherwise fall back to "Execute <operationId>" placeholders.
     ("opencollective", "getCollectives"): "list open collective collectives",
