@@ -272,7 +272,8 @@ class OpenAPIClientFactory:
         # Build query parameters
         params = {}
         if query_params:
-            params.update(query_params)
+            # requests serializes True as "True"; the APIs only accept "true".
+            params.update({k: str(v).lower() if isinstance(v, bool) else v for k, v in query_params.items()})
         if mailto and "mailto" not in params:
             params["mailto"] = mailto
 

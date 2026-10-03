@@ -2,6 +2,7 @@
 
 from .advisories import AdvisoriesOperationHandler
 from .archives import ArchivesOperationHandler
+from .awesome import AwesomeOperationHandler
 from .base import OperationHandler
 from .commits import CommitsOperationHandler
 from .default import DefaultOperationHandler
@@ -24,6 +25,7 @@ from .timeline import TimelineOperationHandler
 __all__ = [
     "AdvisoriesOperationHandler",
     "ArchivesOperationHandler",
+    "AwesomeOperationHandler",
     "CommitsOperationHandler",
     "DefaultOperationHandler",
     "DependabotOperationHandler",
