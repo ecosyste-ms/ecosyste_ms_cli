@@ -31,13 +31,13 @@ HELP_OVERRIDES = {
     ("awesome", "getProjects"): "list projects that appear in awesome lists",
     ("awesome", "getProject"): "get a project by host/owner/name or id",
     ("awesome", "getProjectLists"): "list awesome lists that include a project (host/owner/name; numeric ids ignore paging)",
-    ("awesome", "lookupProject"): "lookup a project by repository URL",
+    ("awesome", "lookupProject"): "lookup a project by repository URL (registers unknown URLs)",
     ("awesome", "getProjectPackages"): "list packages of projects in awesome lists",
     ("awesome", "getLists"): "list awesome lists",
     ("awesome", "getList"): "get an awesome list by owner/name or id",
     ("awesome", "getListProjects"): "list projects in an awesome list (owner/name; numeric ids ignore filters and paging)",
     ("awesome", "getListListProjects"): "list categorized list entries (owner/name; numeric ids ignore filters and paging)",
-    ("awesome", "lookupList"): "lookup an awesome list by repository URL",
+    ("awesome", "lookupList"): "lookup an awesome list by repository URL (registers unknown URLs)",
     ("awesome", "getTopics"): "list topics",
     ("awesome", "getTopic"): "get a topic by slug",
 }
@@ -94,8 +94,11 @@ class APICommandGenerator:
                         continue
 
                     command_name = APICommandGenerator.operation_id_to_command_name(operation_id)
-                    description = HELP_OVERRIDES.get((api_name, operation_id)) or operation.get(
-                        "summary", f"Execute {operation_id}"
+                    description = (
+                        HELP_OVERRIDES.get((api_name, operation_id))
+                        or operation.get("summary")
+                        or operation.get("description")
+                        or f"Execute {operation_id}"
                     )
                     parameters = operation.get("parameters", [])
                     request_body = operation.get("requestBody")

@@ -131,7 +131,12 @@ def execute_api_call(
 
         result = api_factory.call(api_name, operation_id, **call_params)
 
-        print_output(result, ctx.obj.get("format", DEFAULT_OUTPUT_FORMAT), console=console)
+        output_format = ctx.obj.get("format", DEFAULT_OUTPUT_FORMAT)
+        print_output(result, output_format, console=console, api_name=api_name)
+        # Machine formats stay quiet; humans reading a table get told there is more.
+        next_page = getattr(api_factory, "last_next_page", None)
+        if output_format == "table" and isinstance(next_page, int):
+            err_console.print(f"More results: add --page {next_page}", style="dim")
     except EcosystemsCLIError as e:
         print_error(str(e), console=err_console)
         sys.exit(1)

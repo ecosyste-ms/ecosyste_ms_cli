@@ -117,7 +117,7 @@ class TestDisplayConfiguration:
         assert constants.PRIORITY_FIELDS["repos"] == ["full_name", "name", "description", "stars", "language"]
         assert constants.PRIORITY_FIELDS["packages"] == ["name", "platform", "description", "downloads", "language"]
         assert constants.PRIORITY_FIELDS["summary"] == ["name", "type", "count", "total", "description"]
-        assert constants.PRIORITY_FIELDS["awesome"] == ["name", "title", "url", "description", "category"]
+        assert constants.PRIORITY_FIELDS["awesome"] == ["name", "slug", "url", "category", "language"]
         assert constants.PRIORITY_FIELDS["ost"] == ["id", "url", "category", "language", "score"]
         assert constants.PRIORITY_FIELDS["papers"] == ["doi", "title", "publication_date", "mentions_count", "openalex_id"]
         assert constants.PRIORITY_FIELDS["parser"] == ["id", "url", "status", "created_at", "sha256"]

@@ -8,7 +8,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-from urllib.parse import quote, urljoin
+from urllib.parse import parse_qs, quote, urljoin, urlparse
 
 import requests
 import yaml
@@ -67,6 +67,9 @@ class OpenAPIClientFactory:
         self._operation_map: Dict[str, Dict[str, Any]] = {}
         self._session = requests.Session()
         self._session.headers.update({"User-Agent": f"ecosyste_ms_cli ({__version__})"})
+        # Page number from the last response's Link rel="next" header, if any.
+        # Kept on the factory so call() keeps returning just the parsed body.
+        self.last_next_page: Optional[int] = None
 
     def _discover_apis(self) -> List[str]:
         """Discover all available API specs."""
@@ -280,6 +283,7 @@ class OpenAPIClientFactory:
         # Prepare the request
         method = operation_info["method"]
 
+        self.last_next_page = None
         try:
             # Make the HTTP request. GET requests follow redirects so data
             # endpoints that 301/302 (e.g. canonical host/repo names) return
@@ -305,6 +309,8 @@ class OpenAPIClientFactory:
             # Check for HTTP errors
             self._handle_http_errors(response)
 
+            self.last_next_page = self._next_page(response)
+
             # Parse the response
             return self._parse_response(response)
 
@@ -314,6 +320,16 @@ class OpenAPIClientFactory:
             raise APIConnectionError(f"Failed to connect to {url}: {str(e)}")
         except requests.exceptions.RequestException as e:
             raise APIConnectionError(f"Request failed: {str(e)}")
+
+    @staticmethod
+    def _next_page(response: requests.Response) -> Optional[int]:
+        """Page number of the Link header's rel="next" URL, or None on the last page."""
+        link = response.headers.get("Link") if response.headers else None
+        for entry in requests.utils.parse_header_links(link) if link else []:
+            if entry.get("rel") == "next":
+                page = parse_qs(urlparse(entry.get("url", "")).query).get("page", [None])[0]
+                return int(page) if page and page.isdigit() else None
+        return None
 
     def _handle_http_errors(self, response: requests.Response) -> None:
         """Handle HTTP error responses.
