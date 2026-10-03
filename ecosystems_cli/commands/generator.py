@@ -17,8 +17,8 @@ HELP_OVERRIDES = {
     ("advisories", "getAdvisory"): "get an advisory by uuid",
     ("dependabot", "getRegistries"): "list registries",
     ("packages", "getRegistries"): "list registries",
-    # The opencollective spec has no summary fields at all, so these commands
-    # would otherwise fall back to "Execute <operationId>" placeholders.
+    # The opencollective spec has no summaries, only terse descriptions
+    # ("get collectives"); these say what the commands actually return.
     ("opencollective", "getCollectives"): "list open collective collectives",
     ("opencollective", "getCollective"): "get a collective by id",
     ("opencollective", "getCollectiveProjects"): "list projects of a collective",
@@ -28,6 +28,7 @@ HELP_OVERRIDES = {
     ("opencollective", "lookupProject"): "lookup a project by repository or package URL",
     # Same for the awesome spec. Its list/project ids also take slugs, and
     # numeric ids redirect upstream to the slug URL, dropping the query string.
+    # Lookups of unknown URLs create the record upstream.
     ("awesome", "getProjects"): "list projects that appear in awesome lists",
     ("awesome", "getProject"): "get a project by host/owner/name or id",
     ("awesome", "getProjectLists"): "list awesome lists that include a project (host/owner/name; numeric ids ignore paging)",

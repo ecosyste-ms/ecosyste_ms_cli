@@ -68,7 +68,7 @@ def test_get_hosts_replaces_get_registries():
 
 
 def test_opencollective_help_has_no_placeholders():
-    """The opencollective spec has no summaries; HELP_OVERRIDES supplies real ones."""
+    """HELP_OVERRIDES replaces the opencollective spec's terse descriptions."""
     runner = CliRunner()
     result = runner.invoke(cli, ["opencollective", "--help"])
     assert result.exit_code == 0
@@ -78,7 +78,7 @@ def test_opencollective_help_has_no_placeholders():
 
 
 def test_awesome_help_has_no_placeholders():
-    """The awesome spec has no summaries; HELP_OVERRIDES supplies real ones."""
+    """HELP_OVERRIDES replaces the awesome spec's terse descriptions."""
     runner = CliRunner()
     result = runner.invoke(cli, ["awesome", "--help"])
     assert result.exit_code == 0
