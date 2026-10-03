@@ -4,7 +4,7 @@ import asyncio
 import json
 import logging
 import signal
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from mcp.server import Server
 from mcp.server.models import InitializationOptions
@@ -19,6 +19,27 @@ from ecosystems_cli.helpers.print_output import DateTimeEncoder
 from ecosystems_cli.openapi_client import _factory as api_factory
 
 logger = logging.getLogger(__name__)
+
+# Parameter schema overrides for MCP tools, keyed by (api, operation_id, param).
+# The specs are vendored verbatim (and checksummed), so spec errors are
+# corrected here. The awesome spec types its path params as integer, but they
+# also take slugs, and numeric ids redirect upstream dropping all query params.
+_AWESOME_LIST_ID = {
+    "type": ["string", "integer"],
+    "description": "list as owner/name (e.g. sindresorhus/awesome); numeric ids ignore filters and paging",
+}
+_AWESOME_PROJECT_ID = {
+    "type": ["string", "integer"],
+    "description": "project as host/owner/name (e.g. github.com/rails/rails); numeric ids ignore paging",
+}
+PARAM_OVERRIDES = {
+    ("awesome", "getList", "id"): _AWESOME_LIST_ID,
+    ("awesome", "getListProjects", "id"): _AWESOME_LIST_ID,
+    ("awesome", "getListListProjects", "id"): _AWESOME_LIST_ID,
+    ("awesome", "getProject", "id"): _AWESOME_PROJECT_ID,
+    ("awesome", "getProjectLists", "id"): _AWESOME_PROJECT_ID,
+    ("awesome", "getTopic", "slug"): {"type": "string", "description": "topic slug, e.g. python"},
+}
 
 
 class EcosystemsMCPServer:
@@ -77,7 +98,7 @@ class EcosystemsMCPServer:
                                     description = f"{method.upper()} {path} on {api} API"
 
                                 # Build input schema
-                                input_schema = self._build_input_schema(operation)
+                                input_schema = self._build_input_schema(operation, api=api, operation_id=operation_id)
 
                                 tools.append(
                                     Tool(name=f"{api}_{operation_id}", description=description, inputSchema=input_schema)
@@ -182,8 +203,10 @@ class EcosystemsMCPServer:
             logger.error(f"Error calling tool {name}: {e}")
             return [TextContent(type="text", text=f"Error: {str(e)}")]
 
-    def _build_input_schema(self, operation: Dict[str, Any]) -> Dict[str, Any]:
-        """Build JSON schema for tool input from OpenAPI operation."""
+    def _build_input_schema(
+        self, operation: Dict[str, Any], api: Optional[str] = None, operation_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Build JSON schema for tool input from OpenAPI operation, applying PARAM_OVERRIDES."""
         schema = {"type": "object", "properties": {}, "required": []}
 
         # Add parameters
@@ -195,6 +218,7 @@ class EcosystemsMCPServer:
             schema["properties"][param_name] = {
                 "type": param_schema.get("type", "string"),
                 "description": param.get("description", ""),
+                **PARAM_OVERRIDES.get((api, operation_id, param_name), {}),
             }
 
             if param_required:

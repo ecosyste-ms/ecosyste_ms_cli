@@ -127,6 +127,37 @@ class TestEcosystemsMCPServer:
         assert schema["properties"]["id"]["type"] == "integer"
         assert schema["properties"]["filter"]["type"] == "string"
 
+    def test_build_input_schema_applies_param_overrides(self, mcp_server):
+        """The awesome spec types slug-accepting path params as integer; MCP must accept slugs."""
+        operation = {
+            "parameters": [
+                {"name": "slug", "in": "path", "required": True, "schema": {"type": "integer"}},
+                {"name": "page", "in": "query", "schema": {"type": "integer"}},
+            ]
+        }
+
+        schema = mcp_server._build_input_schema(operation, api="awesome", operation_id="getTopic")
+
+        assert schema["properties"]["slug"]["type"] == "string"
+        assert schema["properties"]["page"]["type"] == "integer"
+        assert "slug" in schema["required"]
+
+    def test_build_input_schema_awesome_ids_accept_slugs_and_numbers(self, mcp_server):
+        """Every awesome id/slug path param accepts a string, and ids still accept numbers."""
+        from ecosystems_cli.helpers.load_api_spec import load_api_spec
+
+        spec = load_api_spec("awesome")
+        for item in spec["paths"].values():
+            for op in item.values():
+                path_params = [p["name"] for p in op.get("parameters", []) if p["in"] == "path"]
+                schema = mcp_server._build_input_schema(op, api="awesome", operation_id=op["operationId"])
+                for name in path_params:
+                    types = schema["properties"][name]["type"]
+                    types = types if isinstance(types, list) else [types]
+                    assert "string" in types, (op["operationId"], name)
+                    if name == "id":
+                        assert "integer" in types, op["operationId"]
+
     def test_build_input_schema_with_body(self, mcp_server):
         """Test building input schema with request body."""
         operation = {

@@ -26,16 +26,17 @@ HELP_OVERRIDES = {
     ("opencollective", "getProject"): "get a project by id",
     ("opencollective", "getProjectPackages"): "list packages of a project",
     ("opencollective", "lookupProject"): "lookup a project by repository or package URL",
-    # Same for the awesome spec.
+    # Same for the awesome spec. Its list/project ids also take slugs, and
+    # numeric ids redirect upstream to the slug URL, dropping the query string.
     ("awesome", "getProjects"): "list projects that appear in awesome lists",
-    ("awesome", "getProject"): "get a project by id",
-    ("awesome", "getProjectLists"): "list awesome lists that include a project",
+    ("awesome", "getProject"): "get a project by host/owner/name or id",
+    ("awesome", "getProjectLists"): "list awesome lists that include a project (host/owner/name; numeric ids ignore paging)",
     ("awesome", "lookupProject"): "lookup a project by repository URL",
     ("awesome", "getProjectPackages"): "list packages of projects in awesome lists",
     ("awesome", "getLists"): "list awesome lists",
-    ("awesome", "getList"): "get an awesome list by id",
-    ("awesome", "getListProjects"): "list projects in an awesome list",
-    ("awesome", "getListListProjects"): "list entries of an awesome list with categories",
+    ("awesome", "getList"): "get an awesome list by owner/name or id",
+    ("awesome", "getListProjects"): "list projects in an awesome list (owner/name; numeric ids ignore filters and paging)",
+    ("awesome", "getListListProjects"): "list categorized list entries (owner/name; numeric ids ignore filters and paging)",
     ("awesome", "lookupList"): "lookup an awesome list by repository URL",
     ("awesome", "getTopics"): "list topics",
     ("awesome", "getTopic"): "get a topic by slug",
