@@ -26,6 +26,19 @@ HELP_OVERRIDES = {
     ("opencollective", "getProject"): "get a project by id",
     ("opencollective", "getProjectPackages"): "list packages of a project",
     ("opencollective", "lookupProject"): "lookup a project by repository or package URL",
+    # Same for the awesome spec.
+    ("awesome", "getProjects"): "list projects that appear in awesome lists",
+    ("awesome", "getProject"): "get a project by id",
+    ("awesome", "getProjectLists"): "list awesome lists that include a project",
+    ("awesome", "lookupProject"): "lookup a project by repository URL",
+    ("awesome", "getProjectPackages"): "list packages of projects in awesome lists",
+    ("awesome", "getLists"): "list awesome lists",
+    ("awesome", "getList"): "get an awesome list by id",
+    ("awesome", "getListProjects"): "list projects in an awesome list",
+    ("awesome", "getListListProjects"): "list entries of an awesome list with categories",
+    ("awesome", "lookupList"): "lookup an awesome list by repository URL",
+    ("awesome", "getTopics"): "list topics",
+    ("awesome", "getTopic"): "get a topic by slug",
 }
 
 

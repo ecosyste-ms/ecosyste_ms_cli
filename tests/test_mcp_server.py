@@ -64,6 +64,7 @@ class TestEcosystemsMCPServer:
         expected_apis = [
             "advisories",
             "archives",
+            "awesome",
             "commits",
             "dependabot",
             "diff",

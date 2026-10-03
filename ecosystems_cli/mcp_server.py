@@ -30,6 +30,7 @@ class EcosystemsMCPServer:
         self.apis = [
             "advisories",
             "archives",
+            "awesome",
             "commits",
             "dependabot",
             "diff",
