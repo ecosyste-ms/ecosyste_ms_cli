@@ -281,6 +281,88 @@ class TestAdvisoriesCommands:
         )
         mock_print_output.assert_called_once()
 
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_get_advisories_with_version(self, mock_print_output, mock_api_factory):
+        """Test that --version is sent as the version filter."""
+        mock_api_factory.call.return_value = []
+
+        result = self.runner.invoke(
+            self.advisories_group,
+            ["get_advisories", "--ecosystem", "npm", "--package-name", "lodash", "--version", "4.17.20"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "advisories",
+            "getAdvisories",
+            path_params={},
+            query_params={"ecosystem": "npm", "package_name": "lodash", "version": "4.17.20"},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+        )
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_get_advisories_versioned_purl_sets_version(self, mock_print_output, mock_api_factory):
+        """Test that a PURL's version becomes the version filter."""
+        mock_api_factory.call.return_value = []
+
+        result = self.runner.invoke(
+            self.advisories_group,
+            ["get_advisories", "--purl", "pkg:npm/lodash@4.17.20"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "advisories",
+            "getAdvisories",
+            path_params={},
+            query_params={"ecosystem": "npm", "package_name": "lodash", "version": "4.17.20"},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+        )
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_get_advisories_explicit_version_overrides_purl(self, mock_print_output, mock_api_factory):
+        """Test that an explicit --version wins over the PURL's version."""
+        mock_api_factory.call.return_value = []
+
+        result = self.runner.invoke(
+            self.advisories_group,
+            ["get_advisories", "--purl", "pkg:npm/lodash@4.17.20", "--version", "4.17.21"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "advisories",
+            "getAdvisories",
+            path_params={},
+            query_params={"ecosystem": "npm", "package_name": "lodash", "version": "4.17.21"},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+        )
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    def test_get_advisories_version_requires_package(self, mock_api_factory):
+        """Test that --version without ecosystem and package name is a usage error."""
+        result = self.runner.invoke(
+            self.advisories_group,
+            ["get_advisories", "--ecosystem", "npm", "--version", "4.17.20"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 2
+        assert "--version requires" in result.output
+        mock_api_factory.call.assert_not_called()
+
     def test_get_advisories_invalid_purl_raises(self):
         """Test that an unparseable --purl raises a UsageError."""
         result = self.runner.invoke(

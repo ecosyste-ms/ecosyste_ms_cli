@@ -322,6 +322,8 @@ paths:
                 type: array
                 items:
                   "$ref": "#/components/schemas/PackageWithRegistry"
+        '400':
+          description: missing repository_url, purl or name parameter
   "/packages/critical":
     get:
       summary: list all critical packages
@@ -1697,6 +1699,12 @@ paths:
         required: false
         schema:
           type: string
+      - name: version_id
+        in: query
+        description: id of the version that declares the dependencies
+        required: false
+        schema:
+          type: integer
       - name: package_name
         in: query
         description: package name
