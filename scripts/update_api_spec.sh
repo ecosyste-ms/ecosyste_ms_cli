@@ -49,6 +49,7 @@ download_spec https://licenses.ecosyste.ms/docs/api/v1/openapi.yaml "$SPEC_DIR/l
 download_spec https://archives.ecosyste.ms/docs/api/v1/openapi.yaml "$SPEC_DIR/archives.openapi.yaml"
 download_spec https://diff.ecosyste.ms/docs/api/v1/openapi.yaml "$SPEC_DIR/diff.openapi.yaml"
 download_spec https://summary.ecosyste.ms/docs/api/v1/openapi.yaml "$SPEC_DIR/summary.openapi.yaml"
+download_spec https://awesome.ecosyste.ms/docs/api/v1/openapi.yaml "$SPEC_DIR/awesome.openapi.yaml"
 
 # Generate checksums for future verification
 shasum -a 256 "$SPEC_DIR"/*.openapi.yaml > "$CHECKSUM_FILE"

@@ -75,6 +75,24 @@ def test_opencollective_help_has_no_placeholders():
     assert "list open collective collectives" in result.output
 
 
+def test_awesome_help_has_no_placeholders():
+    """The awesome spec has no summaries; HELP_OVERRIDES supplies real ones."""
+    runner = CliRunner()
+    result = runner.invoke(cli, ["awesome", "--help"])
+    assert result.exit_code == 0
+    assert "Execute get" not in result.output
+    assert "Execute lookup" not in result.output
+    assert "list awesome lists" in result.output
+
+
+def test_awesome_list_help_recommends_owner_name():
+    """Numeric list ids redirect upstream and lose query params; help steers users to owner/name."""
+    runner = CliRunner()
+    result = runner.invoke(cli, ["awesome", "get_list_projects", "--help"])
+    assert result.exit_code == 0
+    assert "owner/name" in result.output
+
+
 def test_get_advisory_help_grammar():
     """'get a advisories by uuid' (upstream spec) is overridden with correct grammar."""
     runner = CliRunner()

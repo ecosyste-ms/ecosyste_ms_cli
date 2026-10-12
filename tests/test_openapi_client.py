@@ -250,6 +250,14 @@ class TestCallRequestBuilding:
         # the real payload instead of a redirect envelope.
         assert kwargs["allow_redirects"] is True
 
+    def test_boolean_query_params_are_lowercase(self, call_factory):
+        """requests would send True as 'True'; Rails-style APIs only accept 'true'."""
+        call_factory._session.request.return_value = _make_response(json_data=[])
+
+        call_factory.call("test", "getTest", query_params={"with_repository": True, "not_list": False})
+
+        assert call_factory._session.request.call_args.kwargs["params"] == {"with_repository": "true", "not_list": "false"}
+
     def test_path_params_are_url_encoded(self, call_factory):
         """Path values are fully encoded (safe=''), so '/' and spaces can't escape the segment."""
         call_factory._session.request.return_value = _make_response(json_data={"id": "x"})
