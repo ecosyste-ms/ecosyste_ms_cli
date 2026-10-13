@@ -187,6 +187,10 @@ class EcosystemsMCPServer:
 
         # Add parameters
         for param in operation.get("parameters", []):
+            # Only path/query parameters are forwarded by _call_tool; header
+            # parameters (e.g. If-None-Match) are not tool inputs.
+            if param.get("in") not in ("path", "query"):
+                continue
             param_name = param.get("name")
             param_schema = param.get("schema", {})
             param_required = param.get("required", False)
