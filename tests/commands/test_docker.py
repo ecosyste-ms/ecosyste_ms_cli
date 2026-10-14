@@ -215,6 +215,53 @@ class TestDockerCommands:
 
     @mock.patch("ecosystems_cli.commands.execution.api_factory")
     @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_usage_package_dependencies(self, mock_print_output, mock_api_factory):
+        """Test getting dependencies of a package used in Docker images."""
+        mock_api_factory.call.return_value = [{"ecosystem": "npm", "package_name": "loose-envify"}]
+
+        result = self.runner.invoke(
+            self.docker_group,
+            ["usage_package_dependencies", "npm", "react", "--per-page", "5"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "docker",
+            "usagePackageDependencies",
+            path_params={"ecosystem": "npm", "package": "react"},
+            query_params={"per_page": 5},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+        )
+        mock_print_output.assert_called_once()
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_get_packages_with_query(self, mock_print_output, mock_api_factory):
+        """Test searching packages by name/description."""
+        mock_api_factory.call.return_value = [{"name": "library/redis"}]
+
+        result = self.runner.invoke(
+            self.docker_group,
+            ["get_packages", "--query", "redis"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "docker",
+            "getPackages",
+            path_params={},
+            query_params={"query": "redis"},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+        )
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
     def test_get_distros(self, mock_print_output, mock_api_factory):
         """Test getting Linux distributions."""
         mock_api_factory.call.return_value = [
