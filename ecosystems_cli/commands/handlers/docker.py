@@ -17,6 +17,7 @@ class DockerOperationHandler(OperationHandler):
         "getPackageVersion": [("packageName", ["packagename"]), ("versionNumber", ["versionnumber"])],
         "usageEcosystem": [("ecosystem", ["ecosystem"])],
         "usagePackage": [("ecosystem", ["ecosystem"]), ("package", ["package"])],
+        "usagePackageDependencies": [("ecosystem", ["ecosystem"]), ("package", ["package"])],
         "getDistro": [("slug", ["slug"])],
         "getDistroVersions": [("slug", ["slug"])],
     }

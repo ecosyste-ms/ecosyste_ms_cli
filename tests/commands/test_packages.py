@@ -799,6 +799,30 @@ class TestPackagesCommands:
 
     @mock.patch("ecosystems_cli.commands.execution.api_factory")
     @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_get_dependencies_with_version_id(self, mock_print_output, mock_api_factory):
+        """Test get_dependencies forwards --version-id as an integer filter."""
+        mock_api_factory.call.return_value = []
+
+        result = self.runner.invoke(
+            self.packages_group,
+            ["get_dependencies", "--version-id", "12345"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "packages",
+            "getDependencies",
+            path_params={},
+            query_params={"version_id": 12345},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+        )
+        mock_print_output.assert_called_once()
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
     def test_get_dependencies_with_purl(self, mock_print_output, mock_api_factory):
         """Test get_dependencies decomposes --purl into ecosystem and package_name."""
         mock_api_factory.call.return_value = []

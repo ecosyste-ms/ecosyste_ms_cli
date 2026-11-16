@@ -14,17 +14,28 @@ advisories = APICommandGenerator.create_api_group("advisories")
 
 
 @override_auto_command(advisories, "get_advisories", help="list advisories")
-@click.option("--purl", type=str, default=None, help="Package URL (PURL). Example: pkg:npm/fsa")
+@click.option(
+    "--purl",
+    type=str,
+    default=None,
+    help="Package URL (PURL). Example: pkg:npm/fsa. A version (pkg:npm/fsa@1.0.0) sets --version.",
+)
 @click.option("--ecosystem", type=str, default=None, help="Ecosystem to filter by")
 @click.option("--package-name", type=str, default=None, help="Package to filter by")
 @click.option("--severity", type=str, default=None, help="Severity to filter by")
+@click.option(
+    "--version",
+    type=str,
+    default=None,
+    help="Only advisories whose affected ranges match this version. Requires ecosystem and package name.",
+)
 @click.option("--repository-url", type=str, default=None, help="Repository URL to filter by")
 @click.option("--page", type=click.IntRange(min=1), default=None, help="pagination page number")
 @click.option("--per-page", type=click.IntRange(min=1), default=None, help="Number of records to return")
 @click.option("--created-after", type=str, default=None, help="filter by created_at after given time")
 @click.option("--updated-after", type=str, default=None, help="filter by updated_at after given time")
-@click.option("--sort", type=str, default=None, help="field to order results by")
-@click.option("--order", type=str, default=None, help="direction to order results by")
+@click.option("--sort", type=str, default=None, help="Comma-separated columns to sort by (default: published_at)")
+@click.option("--order", type=str, default=None, help="Comma-separated asc/desc per sort column (default: desc)")
 @click.option("--source", type=str, default=None, help="Source to filter by (e.g. github, erlef, cpansa)")
 @common_options
 @click.pass_context
@@ -38,6 +49,7 @@ def get_advisories(
     ecosystem: Optional[str],
     package_name: Optional[str],
     severity: Optional[str],
+    version: Optional[str],
     repository_url: Optional[str],
     page: Optional[int],
     per_page: Optional[int],
@@ -59,6 +71,7 @@ def get_advisories(
         ecosystem: Ecosystem to filter by
         package_name: Package name to filter by
         severity: Severity to filter by
+        version: Only advisories whose affected ranges match this version
         repository_url: Repository URL to filter by
         page: Pagination page number
         per_page: Number of records to return
@@ -70,15 +83,21 @@ def get_advisories(
     update_context(ctx, timeout, format, domain, mailto)
 
     # Explicit flags win over PURL-derived values.
-    parsed = apply_purl(purl)
+    parsed = apply_purl(purl, with_version=True)
     ecosystem = ecosystem or parsed.get("ecosystem")
     package_name = package_name or parsed.get("package_name")
+    version = version or parsed.get("version")
+
+    # The API rejects a version filter without a package (HTTP 400); fail fast.
+    if version and not (ecosystem and package_name):
+        raise click.UsageError("--version requires --ecosystem and --package-name (or a --purl).")
 
     # Build kwargs for the API call
     kwargs = build_kwargs(
         ecosystem=ecosystem,
         package_name=package_name,
         severity=severity,
+        version=version,
         repository_url=repository_url,
         page=page,
         per_page=per_page,

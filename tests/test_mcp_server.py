@@ -158,6 +158,19 @@ class TestEcosystemsMCPServer:
                     if name == "id":
                         assert "integer" in types, op["operationId"]
 
+    def test_build_input_schema_skips_header_parameters(self, mcp_server):
+        """Header parameters (e.g. If-None-Match) are never forwarded, so they are not tool inputs."""
+        operation = {
+            "parameters": [
+                {"name": "id", "in": "path", "required": True, "schema": {"type": "string"}},
+                {"name": "If-None-Match", "in": "header", "required": False, "schema": {"type": "string"}},
+            ]
+        }
+
+        schema = mcp_server._build_input_schema(operation)
+
+        assert list(schema["properties"]) == ["id"]
+
     def test_build_input_schema_with_body(self, mcp_server):
         """Test building input schema with request body."""
         operation = {

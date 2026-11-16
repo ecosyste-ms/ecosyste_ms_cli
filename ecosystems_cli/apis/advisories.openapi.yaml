@@ -43,6 +43,13 @@ paths:
         required: false
         schema:
           type: string
+      - name: version
+        in: query
+        description: Return advisories whose affected ranges match this version. Requires
+          ecosystem and package_name. Advisories without a matching range are excluded.
+        required: false
+        schema:
+          type: string
       - name: repository_url
         in: query
         description: Repository URL to filter by
@@ -83,13 +90,16 @@ paths:
           format: date-time
       - name: sort
         in: query
-        description: field to order results by
+        description: Comma-separated advisory column names to sort by. Defaults to
+          published_at. Unknown columns return 400.
         required: false
         schema:
           type: string
       - name: order
         in: query
-        description: direction to order results by
+        description: Comma-separated asc or desc directions corresponding to sort
+          fields, case-insensitive. Missing directions default to desc. Invalid or
+          extra directions return 400.
         required: false
         schema:
           type: string
@@ -102,6 +112,15 @@ paths:
                 type: array
                 items:
                   "$ref": "#/components/schemas/Advisory"
+        400:
+          description: Invalid version filter, sort column or order direction
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
   "/advisories/packages":
     get:
       summary: list packages that have advisories
@@ -129,7 +148,9 @@ paths:
       parameters:
       - name: purl
         in: query
-        description: 'Package URL (PURL) to lookup advisories for. Format: pkg:type/namespace/name@version'
+        description: 'Package URL (PURL) to lookup advisories for. Format: pkg:type/namespace/name@version.
+          When a version is provided, only advisories with a matching affected range
+          are returned.'
         required: false
         schema:
           type: string
