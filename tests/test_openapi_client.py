@@ -250,6 +250,30 @@ class TestCallRequestBuilding:
         # the real payload instead of a redirect envelope.
         assert kwargs["allow_redirects"] is True
 
+    def test_boolean_query_params_are_lowercase(self, call_factory):
+        """requests would send True as 'True'; Rails-style APIs only accept 'true'."""
+        call_factory._session.request.return_value = _make_response(json_data=[])
+
+        call_factory.call("test", "getTest", query_params={"with_repository": True, "not_list": False})
+
+        assert call_factory._session.request.call_args.kwargs["params"] == {"with_repository": "true", "not_list": "false"}
+
+    def test_next_page_is_recorded_from_link_header(self, call_factory):
+        link = '<https://x/api/v1/lists?page=1>; rel="first", <https://x/api/v1/lists?per_page=3&page=2>; rel="next"'
+        call_factory._session.request.return_value = _make_response(json_data=[], headers={"Link": link})
+
+        call_factory.call("test", "getTest")
+
+        assert call_factory.last_next_page == 2
+
+    def test_next_page_is_reset_without_link_header(self, call_factory):
+        call_factory.last_next_page = 5
+        call_factory._session.request.return_value = _make_response(json_data=[])
+
+        call_factory.call("test", "getTest")
+
+        assert call_factory.last_next_page is None
+
     def test_path_params_are_url_encoded(self, call_factory):
         """Path values are fully encoded (safe=''), so '/' and spaces can't escape the segment."""
         call_factory._session.request.return_value = _make_response(json_data={"id": "x"})

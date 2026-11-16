@@ -17,8 +17,8 @@ HELP_OVERRIDES = {
     ("advisories", "getAdvisory"): "get an advisory by uuid",
     ("dependabot", "getRegistries"): "list registries",
     ("packages", "getRegistries"): "list registries",
-    # The opencollective spec has no summary fields at all, so these commands
-    # would otherwise fall back to "Execute <operationId>" placeholders.
+    # The opencollective spec has no summaries, only terse descriptions
+    # ("get collectives"); these say what the commands actually return.
     ("opencollective", "getCollectives"): "list open collective collectives",
     ("opencollective", "getCollective"): "get a collective by id",
     ("opencollective", "getCollectiveProjects"): "list projects of a collective",
@@ -26,6 +26,21 @@ HELP_OVERRIDES = {
     ("opencollective", "getProject"): "get a project by id",
     ("opencollective", "getProjectPackages"): "list packages of a project",
     ("opencollective", "lookupProject"): "lookup a project by repository or package URL",
+    # Same for the awesome spec. Its list/project ids also take slugs, and
+    # numeric ids redirect upstream to the slug URL, dropping the query string.
+    # Lookups of unknown URLs create the record upstream.
+    ("awesome", "getProjects"): "list projects that appear in awesome lists",
+    ("awesome", "getProject"): "get a project by host/owner/name or id",
+    ("awesome", "getProjectLists"): "list awesome lists that include a project (host/owner/name; numeric ids ignore paging)",
+    ("awesome", "lookupProject"): "lookup a project by repository URL (registers unknown URLs)",
+    ("awesome", "getProjectPackages"): "list packages of projects in awesome lists",
+    ("awesome", "getLists"): "list awesome lists",
+    ("awesome", "getList"): "get an awesome list by owner/name or id",
+    ("awesome", "getListProjects"): "list projects in an awesome list (owner/name; numeric ids ignore filters and paging)",
+    ("awesome", "getListListProjects"): "list categorized list entries (owner/name; numeric ids ignore filters and paging)",
+    ("awesome", "lookupList"): "lookup an awesome list by repository URL (registers unknown URLs)",
+    ("awesome", "getTopics"): "list topics",
+    ("awesome", "getTopic"): "get a topic by slug",
 }
 
 
@@ -80,8 +95,11 @@ class APICommandGenerator:
                         continue
 
                     command_name = APICommandGenerator.operation_id_to_command_name(operation_id)
-                    description = HELP_OVERRIDES.get((api_name, operation_id)) or operation.get(
-                        "summary", f"Execute {operation_id}"
+                    description = (
+                        HELP_OVERRIDES.get((api_name, operation_id))
+                        or operation.get("summary")
+                        or operation.get("description")
+                        or f"Execute {operation_id}"
                     )
                     parameters = operation.get("parameters", [])
                     request_body = operation.get("requestBody")

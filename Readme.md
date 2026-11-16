@@ -61,6 +61,7 @@ The CLI provides access to various [ecosyste.ms APIs](https://ecosyste.ms/api). 
 
 - **`advisories`** - Security advisories and vulnerability data
 - **`archives`** - Package archive analysis
+- **`awesome`** - Awesome lists, their projects and topics
 - **`commits`** - Repository commit data
 - **`dependabot`** - Dependabot integration data
 - **`diff`** - File and archive comparison

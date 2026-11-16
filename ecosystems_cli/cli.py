@@ -5,6 +5,7 @@ import click
 from ecosystems_cli import __version__
 from ecosystems_cli.commands.advisories import advisories
 from ecosystems_cli.commands.archives import archives
+from ecosystems_cli.commands.awesome import awesome
 from ecosystems_cli.commands.commits import commits
 from ecosystems_cli.commands.dependabot import dependabot
 from ecosystems_cli.commands.diff import diff
@@ -90,6 +91,7 @@ def main(ctx, timeout, format, domain, mailto, install_completion):
 COMMAND_REGISTRY = {
     "advisories": advisories,
     "archives": archives,
+    "awesome": awesome,
     "commits": commits,
     "dependabot": dependabot,
     "diff": diff,

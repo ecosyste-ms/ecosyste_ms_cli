@@ -46,7 +46,7 @@ PRIORITY_FIELDS = {
     "repos": ["full_name", "name", "description", "stars", "language"],
     "packages": ["name", "platform", "description", "downloads", "language"],
     "summary": ["name", "type", "count", "total", "description"],
-    "awesome": ["name", "title", "url", "description", "category"],
+    "awesome": ["name", "slug", "url", "category", "language"],
     "papers": ["doi", "title", "publication_date", "mentions_count", "openalex_id"],
     "ost": ["id", "url", "category", "language", "score"],
     "parser": ["id", "url", "status", "created_at", "sha256"],

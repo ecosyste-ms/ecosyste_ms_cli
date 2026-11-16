@@ -1,0 +1,539 @@
+---
+openapi: 3.0.1
+info:
+  title: 'Ecosyste.ms: Awesome'
+  description: An open API service for producing an overview of a list of open source
+    projects.
+  contact:
+    name: Ecosyste.ms
+    email: support@ecosyste.ms
+    url: https://ecosyste.ms
+  version: 1.0.0
+  license:
+    name: CC-BY-SA-4.0
+    url: https://creativecommons.org/licenses/by-sa/4.0/
+externalDocs:
+  description: GitHub Project
+  url: https://github.com/ecosyste-ms/awesome
+servers:
+- url: https://awesome.ecosyste.ms/api/v1
+paths:
+  "/projects":
+    get:
+      description: get projects
+      operationId: getProjects
+      tags:
+      - projects
+      parameters:
+      - name: page
+        in: query
+        description: pagination page number
+        required: false
+        schema:
+          type: integer
+      - name: per_page
+        in: query
+        description: Number of records to return
+        required: false
+        schema:
+          type: integer
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/Project"
+  "/projects/{id}":
+    get:
+      description: get a project by id
+      operationId: getProject
+      tags:
+      - projects
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+        description: id of the project
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Project"
+  "/projects/{id}/lists":
+    get:
+      description: get lists of a project
+      operationId: getProjectLists
+      tags:
+      - projects
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+        description: id of the project
+      - name: page
+        in: query
+        description: pagination page number
+        required: false
+        schema:
+          type: integer
+      - name: per_page
+        in: query
+        description: Number of records to return
+        required: false
+        schema:
+          type: integer
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/List"
+  "/projects/lookup":
+    get:
+      description: lookup project by url
+      operationId: lookupProject
+      tags:
+      - projects
+      parameters:
+      - name: url
+        in: query
+        description: url of the project
+        required: true
+        schema:
+          type: string
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Project"
+  "/projects/packages":
+    get:
+      description: get projects with packages
+      operationId: getProjectPackages
+      tags:
+      - projects
+      parameters:
+      - name: page
+        in: query
+        description: pagination page number
+        required: false
+        schema:
+          type: integer
+      - name: per_page
+        in: query
+        description: Number of records to return
+        required: false
+        schema:
+          type: integer
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/Project"
+  "/lists":
+    get:
+      description: get lists
+      operationId: getLists
+      tags:
+      - lists
+      parameters:
+      - name: page
+        in: query
+        description: pagination page number
+        required: false
+        schema:
+          type: integer
+      - name: per_page
+        in: query
+        description: Number of records to return
+        required: false
+        schema:
+          type: integer
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/List"
+  "/lists/{id}":
+    get:
+      description: get a list by id
+      operationId: getList
+      tags:
+      - lists
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+        description: id of the list
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/List"
+  "/lists/{id}/projects":
+    get:
+      description: Get projects of a list in ascending project ID order.
+      operationId: getListProjects
+      tags:
+      - lists
+      parameters:
+      - name: with_repository
+        in: query
+        description: Only return projects with repository data when true.
+        required: false
+        schema:
+          type: boolean
+          default: false
+      - name: not_list
+        in: query
+        description: Exclude awesome lists when true.
+        required: false
+        schema:
+          type: boolean
+          default: false
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+        description: id of the list
+      - name: page
+        in: query
+        description: pagination page number
+        required: false
+        schema:
+          type: integer
+      - name: per_page
+        in: query
+        description: Number of records to return
+        required: false
+        schema:
+          type: integer
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/Project"
+  "/lists/{id}/list_projects":
+    get:
+      description: get list projects of a list
+      operationId: getListListProjects
+      tags:
+      - lists
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+        description: id of the list
+      - name: category
+        in: query
+        description: category of the list project
+        required: false
+        schema:
+          type: string
+      - name: sub_category
+        in: query
+        description: sub category of the list project
+        required: false
+        schema:
+          type: string
+      - name: page
+        in: query
+        description: pagination page number
+        required: false
+        schema:
+          type: integer
+      - name: per_page
+        in: query
+        description: Number of records to return
+        required: false
+        schema:
+          type: integer
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/ListProject"
+  "/lists/lookup":
+    get:
+      description: lookup list by url
+      operationId: lookupList
+      tags:
+      - lists
+      parameters:
+      - name: url
+        in: query
+        description: url of the list
+        required: true
+        schema:
+          type: string
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/List"
+  "/topics":
+    get:
+      description: get topics
+      operationId: getTopics
+      tags:
+      - topics
+      parameters:
+      - name: page
+        in: query
+        description: pagination page number
+        required: false
+        schema:
+          type: integer
+      - name: per_page
+        in: query
+        description: Number of records to return
+        required: false
+        schema:
+          type: integer
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/Topic"
+  "/topics/{slug}":
+    get:
+      description: get a topic by slug
+      operationId: getTopic
+      tags:
+      - topics
+      parameters:
+      - in: path
+        name: slug
+        schema:
+          type: integer
+        required: true
+        description: slug of the topic
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Topic"
+components:
+  schemas:
+    Project:
+      type: object
+      properties:
+        id:
+          type: integer
+        url:
+          type: string
+        last_synced_at:
+          type: string
+          format: date-time
+        repository:
+          type: object
+        owner:
+          type: object
+        packages:
+          type: array
+          items:
+            type: object
+        commits:
+          type: object
+        issues:
+          type: object
+        events:
+          type: object
+        keywords:
+          type: array
+          items:
+            type: string
+        dependencies:
+          type: object
+        score:
+          type: number
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        avatar_url:
+          type: string
+        language:
+          type: string
+        category:
+          type: string
+        sub_category:
+          type: string
+        monthly_downloads:
+          type: integer
+        readme:
+          type: string
+        funding_links:
+          type: array
+          items:
+            type: string
+        readme_doi_urls:
+          type: array
+          items:
+            type: string
+        works:
+          type: object
+        categories:
+          type: array
+          items:
+            type: string
+        sub_categories:
+          type: array
+          items:
+            type: string
+    List:
+      type: object
+      properties:
+        id:
+          type: integer
+        url:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        projects_count:
+          type: integer
+        last_synced_at:
+          type: string
+          format: date-time
+        repository:
+          type: object
+        readme:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        primary_language:
+          type: string
+        list_of_lists:
+          type: boolean
+        displayable:
+          type: boolean
+        categories:
+          type: array
+          items:
+            type: string
+        sub_categories:
+          type: array
+          items:
+            type: string
+        projects_url:
+          type: string
+    Topic:
+      type: object
+      properties:
+        id:
+          type: integer
+        slug:
+          type: string
+        name:
+          type: string
+        short_description:
+          type: string
+        url:
+          type: string
+        github_count:
+          type: integer
+        created_by:
+          type: string
+        logo_url:
+          type: string
+        released:
+          type: string
+        wikipedia_url:
+          type: string
+        related_topics:
+          type: array
+          items:
+            type: string
+        aliases:
+          type: array
+          items:
+            type: string
+        github_url:
+          type: string
+        content:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    ListProject:
+      type: object
+      properties:
+        id:
+          type: integer
+        list_id:
+          type: integer
+        project_id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        sub_category:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        project:
+          type: object
+          "$ref": "#/components/schemas/Project"

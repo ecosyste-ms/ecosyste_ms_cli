@@ -4,6 +4,22 @@ from typing import List, Tuple
 
 import click
 
+INT64_MAX = 2**63 - 1
+
+
+class NonEmptyString(click.ParamType):
+    """A string option that rejects empty or whitespace-only values."""
+
+    name = "text"
+
+    def convert(self, value, param, ctx):
+        if not str(value).strip():
+            self.fail("must not be empty", param, ctx)
+        return value
+
+
+NON_EMPTY_STRING = NonEmptyString()
+
 
 def build_body_decorators(request_body: dict) -> Tuple[List, List[str]]:
     """Build click option decorators for an operation's JSON request body.
@@ -82,14 +98,17 @@ def build_click_decorators(parameters: List[dict]) -> List:
             click_type = None
             if param_type == "integer":
                 # Pagination values are forwarded to the API verbatim, where
-                # zero/negative values produce opaque 500s; validate them
-                # client-side as positive integers.
+                # zero/negative values and values beyond int64 produce opaque
+                # 500s; validate them client-side.
                 if param_name in ("page", "per_page"):
-                    click_type = click.IntRange(min=1)
+                    click_type = click.IntRange(min=1, max=INT64_MAX)
                 else:
                     click_type = int
             elif param_type == "boolean":
                 click_type = bool
+            elif param_type == "string":
+                # An empty value is sent as "param=" and silently ignored upstream.
+                click_type = NON_EMPTY_STRING
 
             option_decorator = click.option(
                 f"--{python_param_name}",

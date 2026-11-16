@@ -9,7 +9,7 @@ cd "$(dirname "$0")/.."
 SPEC_DIR="ecosystems_cli/apis"
 CHECKSUM_FILE="$SPEC_DIR/checksums.sha256"
 APIS="packages repos advisories timeline commits issues sponsors docker opencollective dependabot
-parser resolve sbom licenses archives diff summary"
+parser resolve sbom licenses archives diff summary awesome"
 
 STAGING_DIR=$(mktemp -d)
 trap 'rm -rf "$STAGING_DIR"' EXIT

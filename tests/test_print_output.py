@@ -206,6 +206,19 @@ def test_select_table_fields_with_common_fields():
     # This test will fail initially since _select_table_fields doesn't exist yet
 
 
+def test_select_table_fields_uses_given_api_priorities():
+    """The calling API's priorities win over guessing from overlapping field names."""
+    headers = ["id", "url", "language", "keywords"]
+
+    assert _select_table_fields(headers, api_name="awesome") == ["url", "language"]
+
+
+def test_select_table_fields_falls_back_to_detection_without_overlap():
+    headers = ["id", "name", "extra"]
+
+    assert _select_table_fields(headers, api_name="resolve") == _select_table_fields(headers)
+
+
 def test_format_table_with_list():
     """Test that _format_table properly formats list data as table."""
     from io import StringIO

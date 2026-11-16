@@ -2,7 +2,7 @@ import json
 import os
 import sys
 from datetime import datetime
-from typing import Any, List
+from typing import Any, List, Optional
 
 from rich.console import Console
 
@@ -37,9 +37,16 @@ class TableFieldSelector:
         self.priority_fields["common"] = ["id", "name", "title"]
         self.max_selected_fields = max_selected_fields
 
-    def select_fields(self, headers: List[str]) -> List[str]:
-        """Select which fields to display in the table."""
-        api_type = self._detect_api_type(headers)
+    def select_fields(self, headers: List[str], api_name: Optional[str] = None) -> List[str]:
+        """Select which fields to display in the table.
+
+        The calling API's priorities are used when they match any header;
+        otherwise the API type is guessed from the headers.
+        """
+        if api_name in self.priority_fields and any(field in headers for field in self.priority_fields[api_name]):
+            api_type = api_name
+        else:
+            api_type = self._detect_api_type(headers)
         selected_fields = []
 
         # Apply selection strategies in order
@@ -184,20 +191,20 @@ def _format_jsonl(data: Any, console: Console) -> None:
         print(json.dumps(data, cls=DateTimeEncoder))
 
 
-def _select_table_fields(headers: list[str]) -> list[str]:
+def _select_table_fields(headers: list[str], api_name: Optional[str] = None) -> list[str]:
     """Select which fields to display in the table based on priority."""
     selector = TableFieldSelector(PRIORITY_FIELDS, MAX_SELECTED_FIELDS)
-    return selector.select_fields(headers)
+    return selector.select_fields(headers, api_name)
 
 
-def _format_table(data: Any, console: Console) -> None:
+def _format_table(data: Any, console: Console, api_name: Optional[str] = None) -> None:
     """Format and print data as a rich table."""
     from rich.table import Table
 
     if isinstance(data, list) and len(data) > 0 and all(isinstance(item, dict) for item in data):
         # Select fields to display
         headers = list(data[0].keys())
-        selected_headers = _select_table_fields(headers)
+        selected_headers = _select_table_fields(headers, api_name)
 
         # Create and populate table. overflow="fold" wraps long values (URLs,
         # ids) onto extra lines instead of truncating them with an ellipsis.
@@ -246,13 +253,14 @@ _FORMATTERS = {
 }
 
 
-def print_output(data: Any, format_type: str = DEFAULT_OUTPUT_FORMAT, console: Console = None):
+def print_output(data: Any, format_type: str = DEFAULT_OUTPUT_FORMAT, console: Console = None, api_name: str = None):
     """Print data in the specified format.
 
     Args:
         data: The data to print
         format_type: One of 'table', 'json', 'tsv', or 'jsonl'
         console: Optional rich Console instance
+        api_name: The API the data came from; picks the table columns
     """
     if console is None:
         from rich.console import Console
@@ -261,4 +269,7 @@ def print_output(data: Any, format_type: str = DEFAULT_OUTPUT_FORMAT, console: C
 
     # Get the formatter function from the registry
     formatter = _FORMATTERS.get(format_type, _format_table)
-    formatter(data, console)
+    if formatter is _format_table:
+        formatter(data, console, api_name)
+    else:
+        formatter(data, console)

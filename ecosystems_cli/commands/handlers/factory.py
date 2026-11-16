@@ -4,6 +4,7 @@ from typing import Dict, Type
 
 from .advisories import AdvisoriesOperationHandler
 from .archives import ArchivesOperationHandler
+from .awesome import AwesomeOperationHandler
 from .base import OperationHandler
 from .commits import CommitsOperationHandler
 from .default import DefaultOperationHandler
@@ -29,6 +30,7 @@ class OperationHandlerFactory:
     _handlers: Dict[str, Type[OperationHandler]] = {
         "advisories": AdvisoriesOperationHandler,
         "archives": ArchivesOperationHandler,
+        "awesome": AwesomeOperationHandler,
         "commits": CommitsOperationHandler,
         "dependabot": DependabotOperationHandler,
         "diff": DiffOperationHandler,

@@ -1,5 +1,7 @@
 """Tests for help output of the CLI."""
 
+from unittest import mock
+
 from click.testing import CliRunner
 
 from ecosystems_cli.cli import main as cli
@@ -66,13 +68,45 @@ def test_get_hosts_replaces_get_registries():
 
 
 def test_opencollective_help_has_no_placeholders():
-    """The opencollective spec has no summaries; HELP_OVERRIDES supplies real ones."""
+    """HELP_OVERRIDES replaces the opencollective spec's terse descriptions."""
     runner = CliRunner()
     result = runner.invoke(cli, ["opencollective", "--help"])
     assert result.exit_code == 0
     assert "Execute get" not in result.output
     assert "Execute lookup" not in result.output
     assert "list open collective collectives" in result.output
+
+
+def test_awesome_help_has_no_placeholders():
+    """HELP_OVERRIDES replaces the awesome spec's terse descriptions."""
+    runner = CliRunner()
+    result = runner.invoke(cli, ["awesome", "--help"])
+    assert result.exit_code == 0
+    assert "Execute get" not in result.output
+    assert "Execute lookup" not in result.output
+    assert "list awesome lists" in result.output
+
+
+def test_awesome_list_help_recommends_owner_name():
+    """Numeric list ids redirect upstream and lose query params; help steers users to owner/name."""
+    runner = CliRunner()
+    result = runner.invoke(cli, ["awesome", "get_list_projects", "--help"])
+    assert result.exit_code == 0
+    assert "owner/name" in result.output
+
+
+def test_operation_description_used_when_summary_missing():
+    """Specs without summaries often still have descriptions; prefer those over placeholders."""
+    import click
+
+    from ecosystems_cli.commands.generator import APICommandGenerator
+
+    spec = {"paths": {"/things": {"get": {"operationId": "getThings", "description": "get all things"}}}}
+    group = click.Group("demo")
+    with mock.patch("ecosystems_cli.commands.generator.load_api_spec", return_value=spec):
+        APICommandGenerator._register_commands(group, "demo")
+
+    assert group.commands["get_things"].help == "get all things"
 
 
 def test_get_advisory_help_grammar():
