@@ -12,10 +12,46 @@ from typing import Optional, Sequence
 
 import click
 
-from ecosystems_cli.helpers.purl_parser import apply_purl, purl_type_to_registry
+from ecosystems_cli.helpers.purl_parser import apply_purl, normalize_purl, purl_type_to_registry
 
 # The PURL components, in the order they map onto a command's target parameters.
 _PURL_COMPONENTS = ("ecosystem", "package_name", "version")
+
+
+class PurlParamType(click.ParamType):
+    """A PURL option value, validated and normalized to its canonical form."""
+
+    name = "purl"
+
+    def convert(self, value, param, ctx):
+        try:
+            return normalize_purl(value)
+        except ValueError:
+            self.fail(
+                f"Invalid PURL: {value!r}. Expected format: pkg:type/name[@version] (e.g. pkg:npm/lodash@4.17.21).",
+                param,
+                ctx,
+            )
+
+
+PURL = PurlParamType()
+
+
+def validate_purl_option(group: click.Group, command_name: str, option_name: str) -> None:
+    """Validate and normalize a pass-through PURL option on an auto-generated command.
+
+    For commands that send PURLs to the API verbatim. Some endpoints answer a
+    malformed PURL with a successful "missing" result instead of an error, and
+    match only the canonical form (``pkg:npm/lodash``, not ``pkg:NPM/Lodash``),
+    so the PURL is checked and canonicalized locally, as the decomposing commands
+    already do. Works for repeatable options too: each value is converted.
+    """
+    if command_name not in group.commands:
+        return
+
+    for param in group.commands[command_name].params:
+        if isinstance(param, click.Option) and param.name == option_name:
+            param.type = PURL
 
 
 def attach_purl_option(

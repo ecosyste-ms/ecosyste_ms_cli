@@ -1,6 +1,8 @@
 """Tests for PURL parser."""
 
-from ecosystems_cli.helpers.purl_parser import parse_purl, parse_purl_with_version, purl_type_to_registry
+import pytest
+
+from ecosystems_cli.helpers.purl_parser import normalize_purl, parse_purl, parse_purl_with_version, purl_type_to_registry
 
 
 def test_parse_purl_simple():
@@ -205,3 +207,26 @@ def test_purl_type_to_registry_cargo():
 def test_purl_type_to_registry_unknown():
     """Test converting unknown purl type returns the type itself."""
     assert purl_type_to_registry("unknown") == "unknown"
+
+
+@pytest.mark.parametrize(
+    "purl, expected",
+    [
+        ("pkg:npm/lodash@4.17.21", "pkg:npm/lodash@4.17.21"),
+        ("pkg:NPM/Lodash@4.17.21", "pkg:npm/lodash@4.17.21"),
+        ("pkg:npm/@babel/core@7.22.0", "pkg:npm/%40babel/core@7.22.0"),
+        ("pkg:npm/%40babel/core@7.22.0", "pkg:npm/%40babel/core@7.22.0"),
+        ("pkg:pypi/Django_Rest@1.0", "pkg:pypi/django-rest@1.0"),
+        ("pkg:maven/org.apache.commons/commons-lang3@3.12.0", "pkg:maven/org.apache.commons/commons-lang3@3.12.0"),
+        ("pkg:gem/rails@7.0.0?platform=ruby", "pkg:gem/rails@7.0.0?platform=ruby"),
+    ],
+)
+def test_normalize_purl(purl, expected):
+    """normalize_purl returns the canonical PURL form defined by the PURL spec."""
+    assert normalize_purl(purl) == expected
+
+
+@pytest.mark.parametrize("purl", ["", "invalid-purl", "npm/lodash", "pkg:npm", "pkg:npm/"])
+def test_normalize_purl_rejects_invalid(purl):
+    with pytest.raises(ValueError):
+        normalize_purl(purl)

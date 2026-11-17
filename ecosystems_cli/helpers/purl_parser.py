@@ -147,6 +147,20 @@ def parse_purl_with_version(purl: str) -> Tuple[Optional[str], Optional[str], Op
         return None, None, None
 
 
+def normalize_purl(purl: str) -> str:
+    """Return the canonical form of a PURL, raising ``ValueError`` if it is invalid.
+
+    Canonicalization follows the PURL spec as implemented by ``packageurl``: the
+    type is lowercased, names are normalized per type (e.g. npm and pypi names
+    lowercased, ``_`` -> ``-`` for pypi), and ``@`` in an npm scope is
+    percent-encoded. Examples:
+
+        pkg:NPM/Lodash@4.17.21 -> pkg:npm/lodash@4.17.21
+        pkg:npm/@babel/core@7.22.0 -> pkg:npm/%40babel/core@7.22.0
+    """
+    return PackageURL.from_string(purl).to_string()
+
+
 def apply_purl(
     purl: Optional[str],
     *,
