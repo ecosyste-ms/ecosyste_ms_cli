@@ -68,3 +68,31 @@ class TestArchivesCommands:
             obj={"timeout": 20, "format": "json"},
         )
         assert result.exit_code != 0
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_skills_passes_url_as_query_param(self, mock_print_output, mock_api_factory):
+        mock_api_factory.call.return_value = {"skills": [], "errors": []}
+
+        result = self.runner.invoke(
+            self.archives_group,
+            ["skills", "--url", "https://example.com/pkg.tgz"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "archives",
+            "skills",
+            path_params={},
+            query_params={"url": "https://example.com/pkg.tgz"},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+        )
+        mock_print_output.assert_called_once()
+
+    def test_skills_requires_url(self):
+        result = self.runner.invoke(self.archives_group, ["skills"], obj={"timeout": 20, "format": "json"})
+        assert result.exit_code != 0
+        assert "--url" in result.output
