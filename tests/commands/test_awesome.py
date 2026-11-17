@@ -149,4 +149,5 @@ def test_list_filters_are_sent_as_query_params(runner, mock_api_factory, args, e
 
 def test_get_project_packages_removed_upstream(runner):
     result = runner.invoke(cli, ["awesome", "get_project_packages"])
-    assert result.exit_code != 0
+    assert result.exit_code == 2
+    assert "No such command 'get_project_packages'" in result.output
