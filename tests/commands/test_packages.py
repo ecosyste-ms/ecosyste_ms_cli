@@ -1169,3 +1169,64 @@ class TestPackagesCommands:
             body={"purls": ["pkg:npm/a", "pkg:npm/b"], "ecosystem": "npm"},
         )
         mock_print_output.assert_called_once()
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_lookup_purl_passes_purl_as_query_param(self, mock_print_output, mock_api_factory):
+        mock_api_factory.call.return_value = {"purl": "pkg:npm/lodash@4.17.20", "match_status": "matched"}
+
+        result = self.runner.invoke(
+            self.packages_group,
+            ["lookup_purl", "--purl", "pkg:npm/lodash@4.17.20"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "packages",
+            "lookupPurl",
+            path_params={},
+            query_params={"purl": "pkg:npm/lodash@4.17.20"},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+        )
+        mock_print_output.assert_called_once()
+
+    def test_lookup_purl_requires_purl(self):
+        result = self.runner.invoke(self.packages_group, ["lookup_purl"], obj={"timeout": 20, "format": "json"})
+        assert result.exit_code != 0
+        assert "--purl" in result.output
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_bulk_lookup_purls_sends_array_body(self, mock_print_output, mock_api_factory):
+        mock_api_factory.call.return_value = []
+
+        result = self.runner.invoke(
+            self.packages_group,
+            ["bulk_lookup_purls", "--purls", "pkg:npm/a@1.0.0", "--purls", "pkg:pypi/b@2.0.0"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "packages",
+            "bulkLookupPurls",
+            path_params={},
+            query_params={},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+            body={"purls": ["pkg:npm/a@1.0.0", "pkg:pypi/b@2.0.0"]},
+        )
+        mock_print_output.assert_called_once()
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    def test_bulk_lookup_purls_requires_purls(self, mock_api_factory):
+        """purls is a required body field, so it is enforced before any request is sent."""
+        result = self.runner.invoke(self.packages_group, ["bulk_lookup_purls"], obj={"timeout": 20, "format": "json"})
+
+        assert result.exit_code != 0
+        assert "--purls" in result.output
+        mock_api_factory.call.assert_not_called()
