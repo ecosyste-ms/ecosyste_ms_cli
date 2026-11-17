@@ -1220,6 +1220,12 @@ components:
           type: string
         metadata:
           type: object
+        funding_links:
+          type: array
+          description: Only included in single repository responses (getHostRepository,
+            repositoriesLookup).
+          items:
+            type: string
         created_at:
           type: string
           format: date-time
@@ -1361,6 +1367,11 @@ components:
           type: string
         manifests_url:
           type: string
+        release_url:
+          type: string
+          description: API URL of the release attached to this tag (null if the tag
+            has no release)
+          nullable: true
     Ecosystem:
       type: object
       properties:
@@ -1499,6 +1510,21 @@ components:
           type: string
         html_url:
           type: string
+        tag:
+          type: object
+          description: The tag this release is attached to (null if the tag has not
+            been synced)
+          nullable: true
+          properties:
+            name:
+              type: string
+            sha:
+              type: string
+            kind:
+              type: string
+            published_at:
+              type: string
+              format: date-time
     Scorecard:
       type: object
       properties:
