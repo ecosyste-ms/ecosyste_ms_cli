@@ -126,3 +126,27 @@ def test_lookup_help_warns_about_registration(runner):
     for command in ("lookup_list", "lookup_project"):
         result = runner.invoke(cli, ["awesome", command, "--help"])
         assert "registers" in result.output, command
+
+
+@pytest.mark.parametrize(
+    "args, expected",
+    [
+        (
+            ["get_lists", "--language", "Ruby", "--natural-language", "zh", "--sort", "stars", "--order", "asc"],
+            {"language": "Ruby", "natural_language": "zh", "sort": "stars", "order": "asc"},
+        ),
+        (["get_project_lists", "github.com/rails/rails", "--topic", "ruby"], {"topic": "ruby"}),
+        (["get_projects", "--keyword", "ruby"], {"keyword": "ruby"}),
+        (["get_list_projects", "sindresorhus/awesome", "--keyword", "ruby"], {"keyword": "ruby"}),
+    ],
+)
+def test_list_filters_are_sent_as_query_params(runner, mock_api_factory, args, expected):
+    result = runner.invoke(cli, ["awesome", *args])
+
+    assert result.exit_code == 0, result.output
+    assert mock_api_factory.call.call_args.kwargs["query_params"] == expected
+
+
+def test_get_project_packages_removed_upstream(runner):
+    result = runner.invoke(cli, ["awesome", "get_project_packages"])
+    assert result.exit_code != 0
