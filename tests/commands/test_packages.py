@@ -1284,3 +1284,42 @@ class TestPackagesCommands:
         assert result.exit_code == 2
         assert "Invalid PURL: 'invalid-purl'" in result.output
         mock_api_factory.call.assert_not_called()
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    def test_bulk_lookup_packages_normalizes_purls(self, mock_api_factory):
+        mock_api_factory.call.return_value = []
+
+        result = self.runner.invoke(
+            self.packages_group,
+            ["bulk_lookup_packages", "--purls", "pkg:NPM/Lodash", "--purls", "pkg:npm/@babel/core"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0, result.output
+        assert mock_api_factory.call.call_args.kwargs["body"] == {"purls": ["pkg:npm/lodash", "pkg:npm/%40babel/core"]}
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    def test_bulk_lookup_packages_rejects_invalid_purl(self, mock_api_factory):
+        """The API silently drops a malformed PURL from the results; reject it locally instead."""
+        result = self.runner.invoke(
+            self.packages_group,
+            ["bulk_lookup_packages", "--purls", "pkg:npm/lodash", "--purls", "invalid-purl"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 2
+        assert "Invalid PURL: 'invalid-purl'" in result.output
+        mock_api_factory.call.assert_not_called()
+
+
+def test_every_pass_through_purl_field_has_a_validating_cli_option():
+    """The CLI validates every PASS_THROUGH_PURL_FIELDS entry, for any API."""
+    from ecosystems_cli.cli import main
+    from ecosystems_cli.commands.generator import APICommandGenerator
+    from ecosystems_cli.commands.purl_options import PURL
+    from ecosystems_cli.helpers.purl_parser import PASS_THROUGH_PURL_FIELDS
+
+    for (api, operation_id), field in PASS_THROUGH_PURL_FIELDS.items():
+        command = main.commands[api].commands[APICommandGenerator.operation_id_to_command_name(operation_id)]
+        option = next(p for p in command.params if p.name == field)
+        assert option.type is PURL, (api, operation_id)

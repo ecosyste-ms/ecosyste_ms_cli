@@ -6,7 +6,7 @@ takes. The shared :func:`attach_purl_option` helper wires that up.
 """
 
 from ecosystems_cli.commands.generator import APICommandGenerator
-from ecosystems_cli.commands.purl_options import attach_purl_option, validate_purl_option
+from ecosystems_cli.commands.purl_options import attach_purl_option
 
 packages = APICommandGenerator.create_api_group("packages")
 
@@ -50,9 +50,3 @@ attach_purl_option(
     error=_REGISTRY_VERSION_ERROR,
     example="pkg:npm/lodash@4.17.21. Decomposes into REGISTRY_NAME, PACKAGE_NAME and VERSION_NUMBER.",
 )
-
-# The PURL lookups send PURLs to the API verbatim, and the API answers a
-# malformed or non-canonical PURL with match_status "missing" instead of an
-# error, so validate and normalize them locally.
-validate_purl_option(packages, "lookup_purl", "purl")
-validate_purl_option(packages, "bulk_lookup_purls", "purls")

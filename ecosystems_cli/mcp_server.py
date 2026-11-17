@@ -16,6 +16,7 @@ from ecosystems_cli.exceptions import EcosystemsCLIError
 from ecosystems_cli.helpers.get_domain import build_base_url, get_domain_with_precedence
 from ecosystems_cli.helpers.load_api_spec import load_api_spec
 from ecosystems_cli.helpers.print_output import DateTimeEncoder
+from ecosystems_cli.helpers.purl_parser import normalize_purl_fields
 from ecosystems_cli.openapi_client import _factory as api_factory
 
 logger = logging.getLogger(__name__)
@@ -140,7 +141,9 @@ class EcosystemsMCPServer:
         API. For specific tools, the operation's spec decides which arguments are
         path vs query parameters; ``body`` is forwarded when the operation has a
         request body. The generic ``_call`` tool passes path/query/body through
-        as given.
+        as given. For both, pass-through PURLs (``PASS_THROUGH_PURL_FIELDS``) are
+        validated and normalized first; an invalid one is reported as an error
+        without calling the API.
         """
         try:
             # Parse the tool name to get API and operation
@@ -190,6 +193,10 @@ class EcosystemsMCPServer:
                                     body = arguments["body"]
 
                                 break
+
+            # Validate and normalize pass-through PURLs, as the CLI options do.
+            query_params = normalize_purl_fields(api, operation, query_params)
+            body = normalize_purl_fields(api, operation, body)
 
             # Call the API
             result = await self._call_api(api, operation, path_params, query_params, body)

@@ -6,8 +6,10 @@ from typing import List
 import click
 
 from ecosystems_cli.commands.decorators import common_options
+from ecosystems_cli.commands.purl_options import use_purl_type
 from ecosystems_cli.helpers.click_params import build_body_decorators, build_click_decorators
 from ecosystems_cli.helpers.load_api_spec import load_api_spec
+from ecosystems_cli.helpers.purl_parser import PASS_THROUGH_PURL_FIELDS
 
 # Help-text overrides for auto-generated commands, keyed by
 # (api_name, operation_id). The OpenAPI specs are vendored verbatim from
@@ -110,6 +112,10 @@ class APICommandGenerator:
                         APICommandGenerator._create_parameterized_command(
                             api_group, command_name, description, api_name, operation_id, parameters, request_body
                         )
+
+                    purl_field = PASS_THROUGH_PURL_FIELDS.get((api_name, operation_id))
+                    if purl_field:
+                        use_purl_type(api_group.commands[command_name], purl_field)
 
     @staticmethod
     def _create_simple_command(api_group: click.Group, command_name: str, description: str, api_name: str, operation_id: str):

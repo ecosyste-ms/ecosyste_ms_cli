@@ -1,4 +1,4 @@
-"""Shared wiring for the ``--purl`` shortcut on auto-generated commands.
+"""Shared wiring for PURL options on auto-generated commands.
 
 Several APIs accept a Package URL as a shorthand for the registry/ecosystem,
 package, and (sometimes) version parameters a command already takes.
@@ -6,6 +6,9 @@ package, and (sometimes) version parameters a command already takes.
 positional arguments optional, injects ``--purl``, and wraps the command's
 callback so the PURL fills in any target the user didn't pass explicitly
 (explicit values always win).
+
+Options that send PURLs to the API as given (``PASS_THROUGH_PURL_FIELDS``) get
+the ``PURL`` type instead, applied by the command generator.
 """
 
 from typing import Optional, Sequence
@@ -26,30 +29,21 @@ class PurlParamType(click.ParamType):
     def convert(self, value, param, ctx):
         try:
             return normalize_purl(value)
-        except ValueError:
-            self.fail(
-                f"Invalid PURL: {value!r}. Expected format: pkg:type/name[@version] (e.g. pkg:npm/lodash@4.17.21).",
-                param,
-                ctx,
-            )
+        except ValueError as e:
+            self.fail(str(e), param, ctx)
 
 
 PURL = PurlParamType()
 
 
-def validate_purl_option(group: click.Group, command_name: str, option_name: str) -> None:
-    """Validate and normalize a pass-through PURL option on an auto-generated command.
+def use_purl_type(command: click.Command, option_name: str) -> None:
+    """Give a command's pass-through PURL option the ``PURL`` type.
 
-    For commands that send PURLs to the API verbatim. Some endpoints answer a
-    malformed PURL with a successful "missing" result instead of an error, and
-    match only the canonical form (``pkg:npm/lodash``, not ``pkg:NPM/Lodash``),
-    so the PURL is checked and canonicalized locally, as the decomposing commands
-    already do. Works for repeatable options too: each value is converted.
+    A malformed PURL then fails as a usage error before any request, and each
+    value is sent in canonical form. Works for repeatable options too: each
+    value is converted.
     """
-    if command_name not in group.commands:
-        return
-
-    for param in group.commands[command_name].params:
+    for param in command.params:
         if isinstance(param, click.Option) and param.name == option_name:
             param.type = PURL
 
