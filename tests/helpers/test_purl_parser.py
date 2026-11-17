@@ -1,6 +1,16 @@
 """Tests for PURL parser."""
 
-from ecosystems_cli.helpers.purl_parser import parse_purl, parse_purl_with_version, purl_type_to_registry
+import pytest
+
+from ecosystems_cli.exceptions import InvalidParameterError
+from ecosystems_cli.helpers.purl_parser import (
+    PASS_THROUGH_PURL_FIELDS,
+    normalize_purl,
+    normalize_purl_fields,
+    parse_purl,
+    parse_purl_with_version,
+    purl_type_to_registry,
+)
 
 
 def test_parse_purl_simple():
@@ -205,3 +215,110 @@ def test_purl_type_to_registry_cargo():
 def test_purl_type_to_registry_unknown():
     """Test converting unknown purl type returns the type itself."""
     assert purl_type_to_registry("unknown") == "unknown"
+
+
+@pytest.mark.parametrize(
+    "purl, expected",
+    [
+        ("pkg:npm/lodash@4.17.21", "pkg:npm/lodash@4.17.21"),
+        ("pkg:NPM/Lodash@4.17.21", "pkg:npm/lodash@4.17.21"),
+        ("pkg:npm/@babel/core@7.22.0", "pkg:npm/%40babel/core@7.22.0"),
+        ("pkg:npm/%40babel/core@7.22.0", "pkg:npm/%40babel/core@7.22.0"),
+        ("pkg:pypi/Django_Rest@1.0", "pkg:pypi/django-rest@1.0"),
+        ("pkg:maven/org.apache.commons/commons-lang3@3.12.0", "pkg:maven/org.apache.commons/commons-lang3@3.12.0"),
+        ("pkg:gem/rails@7.0.0?platform=ruby", "pkg:gem/rails@7.0.0?platform=ruby"),
+        # Types packageurl has no rules for are passed through, not rejected.
+        ("pkg:bower/jquery@3.7.1", "pkg:bower/jquery@3.7.1"),
+    ],
+)
+def test_normalize_purl(purl, expected):
+    """normalize_purl returns the canonical PURL form defined by the PURL spec."""
+    assert normalize_purl(purl) == expected
+
+
+@pytest.mark.parametrize(
+    "purl",
+    [
+        "",
+        "invalid-purl",
+        "npm/lodash",
+        "pkg:npm",
+        "pkg:npm/",
+        # Parse fine but break the type's rules: maven requires a namespace, pypi prohibits one.
+        "pkg:maven/commons-lang3@3.12.0",
+        "pkg:pypi/foo/bar@1.0",
+    ],
+)
+def test_normalize_purl_rejects_invalid(purl):
+    with pytest.raises(ValueError):
+        normalize_purl(purl)
+
+
+@pytest.mark.parametrize("value", [None, 42, ["pkg:npm/lodash"]])
+def test_normalize_purl_rejects_non_strings(value):
+    with pytest.raises(ValueError, match="Invalid PURL"):
+        normalize_purl(value)
+
+
+def test_normalize_purl_error_message_names_type_rule():
+    with pytest.raises(ValueError) as excinfo:
+        normalize_purl("pkg:maven/commons-lang3@3.12.0")
+    assert "Namespace is required for purl type: 'maven'" in str(excinfo.value)
+
+
+def test_normalize_purl_error_message():
+    with pytest.raises(ValueError) as excinfo:
+        normalize_purl("invalid-purl")
+    assert str(excinfo.value) == (
+        "Invalid PURL: 'invalid-purl'. Expected format: pkg:type/name[@version] (e.g. pkg:npm/lodash@4.17.21)."
+    )
+
+
+class TestNormalizePurlFields:
+    def test_normalizes_string_field(self):
+        params = {"purl": "pkg:NPM/Lodash@4.17.21", "other": "x"}
+        assert normalize_purl_fields("packages", "lookupPurl", params) == {
+            "purl": "pkg:npm/lodash@4.17.21",
+            "other": "x",
+        }
+        assert params["purl"] == "pkg:NPM/Lodash@4.17.21", "input must not be mutated"
+
+    def test_normalizes_each_list_item(self):
+        body = {"purls": ["pkg:NPM/Lodash", "pkg:npm/@babel/core"], "ecosystem": "npm"}
+        assert normalize_purl_fields("packages", "bulkLookupPackages", body) == {
+            "purls": ["pkg:npm/lodash", "pkg:npm/%40babel/core"],
+            "ecosystem": "npm",
+        }
+
+    def test_invalid_purl_raises_invalid_parameter_error(self):
+        with pytest.raises(InvalidParameterError) as excinfo:
+            normalize_purl_fields("packages", "bulkLookupPurls", {"purls": ["pkg:npm/lodash", "invalid-purl"]})
+        assert excinfo.value.parameter_name == "purls"
+        assert "Invalid PURL: 'invalid-purl'" in str(excinfo.value)
+
+    @pytest.mark.parametrize(
+        "api, operation_id, params",
+        [
+            ("packages", "lookupPackage", {"purl": "not-touched"}),  # API reports bad PURLs itself
+            ("packages", "lookupPurl", {"other": "x"}),
+            ("packages", "lookupPurl", {}),
+            ("packages", "lookupPurl", None),
+        ],
+    )
+    def test_leaves_other_params_alone(self, api, operation_id, params):
+        assert normalize_purl_fields(api, operation_id, params) == params
+
+
+@pytest.mark.parametrize("api, operation_id", sorted(PASS_THROUGH_PURL_FIELDS))
+def test_pass_through_purl_fields_exist_in_spec(api, operation_id):
+    """Every registered field is a query parameter or body property of its operation."""
+    from ecosystems_cli.helpers.load_api_spec import load_api_spec
+
+    field = PASS_THROUGH_PURL_FIELDS[(api, operation_id)]
+    spec = load_api_spec(api)
+    operations = [op for path in spec["paths"].values() for op in path.values() if isinstance(op, dict)]
+    operation = next(op for op in operations if op.get("operationId") == operation_id)
+
+    query = {p["name"] for p in operation.get("parameters", []) if p.get("in") == "query"}
+    body_schema = operation.get("requestBody", {}).get("content", {}).get("application/json", {}).get("schema", {})
+    assert field in query or field in body_schema.get("properties", {})

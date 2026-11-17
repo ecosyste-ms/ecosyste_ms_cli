@@ -337,3 +337,56 @@ class TestEcosystemsMCPServer:
             await mcp_server._call_api(api="repos", operation="getThing", path_params={}, query_params={}, body={})
 
         assert "API Error" in str(exc_info.value) or "Connection failed" in str(exc_info.value)
+
+
+class TestMCPPurlValidation:
+    """MCP tools validate and normalize pass-through PURLs like the CLI does."""
+
+    @pytest.mark.asyncio
+    @patch("ecosystems_cli.mcp_server.EcosystemsMCPServer._call_api")
+    async def test_specific_tool_normalizes_query_purl(self, mock_call_api, mcp_server):
+        mock_call_api.return_value = {"match_status": "matched"}
+
+        await mcp_server._call_tool("packages_lookupPurl", {"purl": "pkg:NPM/Lodash@4.17.21"})
+
+        mock_call_api.assert_awaited_once_with("packages", "lookupPurl", {}, {"purl": "pkg:npm/lodash@4.17.21"}, {})
+
+    @pytest.mark.asyncio
+    @patch("ecosystems_cli.mcp_server.EcosystemsMCPServer._call_api")
+    async def test_specific_tool_normalizes_body_purls(self, mock_call_api, mcp_server):
+        mock_call_api.return_value = [{"match_status": "matched"}]
+
+        await mcp_server._call_tool("packages_bulkLookupPurls", {"body": {"purls": ["pkg:NPM/Lodash", "pkg:npm/@babel/core"]}})
+
+        mock_call_api.assert_awaited_once_with(
+            "packages", "bulkLookupPurls", {}, {}, {"purls": ["pkg:npm/lodash", "pkg:npm/%40babel/core"]}
+        )
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "name, arguments",
+        [
+            ("packages_lookupPurl", {"purl": "invalid-purl"}),
+            ("packages_bulkLookupPurls", {"body": {"purls": ["pkg:npm/lodash", "invalid-purl"]}}),
+            ("packages_bulkLookupPackages", {"body": {"purls": ["invalid-purl"]}}),
+            ("packages_call", {"operation": "lookupPurl", "query_params": {"purl": "invalid-purl"}}),
+            ("packages_call", {"operation": "bulkLookupPackages", "body": {"purls": ["invalid-purl"]}}),
+        ],
+    )
+    @patch("ecosystems_cli.mcp_server.EcosystemsMCPServer._call_api")
+    async def test_invalid_purl_rejected_before_api_call(self, mock_call_api, mcp_server, name, arguments):
+        result = await mcp_server._call_tool(name, arguments)
+
+        assert result[0].text == (
+            "Error: Invalid PURL: 'invalid-purl'. Expected format: pkg:type/name[@version] (e.g. pkg:npm/lodash@4.17.21)."
+        )
+        mock_call_api.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch("ecosystems_cli.mcp_server.EcosystemsMCPServer._call_api")
+    async def test_generic_tool_normalizes_body_purls(self, mock_call_api, mcp_server):
+        mock_call_api.return_value = []
+
+        await mcp_server._call_tool("packages_call", {"operation": "bulkLookupPurls", "body": {"purls": ["pkg:NPM/Lodash"]}})
+
+        mock_call_api.assert_awaited_once_with("packages", "bulkLookupPurls", {}, {}, {"purls": ["pkg:npm/lodash"]})

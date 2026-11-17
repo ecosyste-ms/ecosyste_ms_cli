@@ -18,8 +18,11 @@ Commands fall into two categories depending on how the PURL is consumed:
 
 1. **Decomposed locally** — the CLI parses the PURL and fills in the command's
    ecosystem/registry and package-name parameters before calling the API.
-2. **Passed through to the API** — the PURL is sent verbatim as a `purl` query
-   parameter and the API resolves it server-side.
+2. **Passed through to the API** — the PURL is sent as a `purl` query
+   parameter (or in a request body) and the API resolves it server-side.
+   `lookup_purl`, `bulk_lookup_purls` and `bulk_lookup_packages` validate and
+   normalize the PURL first, in the CLI and the MCP server; see
+   [Error handling](#error-handling).
 
 The distinction matters for two things: precedence (below) and the ecosystem-vs-registry-name handling (below).
 
@@ -101,6 +104,41 @@ Look up a package across all registries for its ecosystem.
 
 ```bash
 ecosystems packages lookup_package --purl "pkg:pypi/django"
+```
+
+> A version in the PURL is ignored: this returns the package, not the version.
+> Use `lookup_purl` to look up a specific version.
+
+#### `lookup_purl` (PURL validated and normalized, then passed to the API)
+
+Look up a package version. Without a version in the PURL, the latest version is
+returned. The result has a `match_status` (`matched`, `missing` or `ambiguous`)
+and the version with its dependencies, artifacts and advisories.
+
+```bash
+ecosystems packages lookup_purl --purl "pkg:npm/lodash@4.17.20"
+```
+
+A PURL that is well-formed but matches nothing returns `match_status: missing`
+with a successful exit, not an error.
+
+#### `bulk_lookup_purls` (each PURL validated and normalized, then passed to the API)
+
+Look up several package versions in one request (at most 100 PURLs). Results
+come back in the order requested, each with its own `match_status`.
+
+```bash
+ecosystems packages bulk_lookup_purls --purls "pkg:npm/lodash@4.17.20" --purls "pkg:pypi/requests@2.0.0"
+```
+
+#### `bulk_lookup_packages` (each PURL validated and normalized, then passed to the API)
+
+Look up several packages in one request (at most 100 PURLs). PURLs can be mixed
+with `--repository-urls` and `--names` (with `--ecosystem`). A version in a PURL
+is ignored, as with `lookup_package`.
+
+```bash
+ecosystems packages bulk_lookup_packages --purls "pkg:npm/lodash" --purls "pkg:npm/@babel/core"
 ```
 
 #### `lookup_registry_package` (PURL passed to the API, registry required)
@@ -231,12 +269,44 @@ ecosystems packages get_registry_package --purl "invalid-purl"
 # Error: Invalid PURL: 'invalid-purl'. Expected format: pkg:type/name (e.g. pkg:npm/lodash).
 ```
 
-Pass-through commands forward the PURL to the API, which reports the problem:
+Most pass-through commands forward the PURL to the API, which reports the problem:
 
 ```bash
 ecosystems advisories lookup_advisories --purl "invalid-purl"
 # Error: HTTP error: {"error":"Invalid PURL format"}
 ```
+
+Three packages endpoints don't report a bad PURL. `lookup_purl` and
+`bulk_lookup_purls` answer it with `match_status: missing`, and
+`bulk_lookup_packages` drops it from the results. So these commands validate
+each PURL locally and raise a usage error (exit code 2) before any request:
+
+```bash
+ecosystems packages lookup_purl --purl "invalid-purl"
+# Error: Invalid value for '--purl': Invalid PURL: 'invalid-purl'. Expected
+#        format: pkg:type/name[@version] (e.g. pkg:npm/lodash@4.17.21).
+```
+
+A PURL that parses but breaks its type's rules is rejected too, for the types
+`packageurl` defines. Types it doesn't define, such as `bower`, are passed
+through unchecked:
+
+```bash
+ecosystems packages lookup_purl --purl "pkg:maven/commons-lang3@3.12.0"
+# Error: Invalid value for '--purl': Invalid PURL:
+#        'pkg:maven/commons-lang3@3.12.0'. Namespace is required for purl type: 'maven'.
+```
+
+They also send each PURL in its canonical form, because these endpoints match
+only the canonical form: `pkg:NPM/Lodash@4.17.21` is sent as
+`pkg:npm/lodash@4.17.21`. Results show the PURL as sent, so a scoped npm
+PURL comes back with the `@` encoded: `pkg:npm/@babel/core` becomes
+`pkg:npm/%40babel/core`.
+
+The MCP server applies the same check to these operations, in both the
+per-operation tools (`packages_lookupPurl`, `packages_bulkLookupPurls`,
+`packages_bulkLookupPackages`) and the generic `packages_call` tool. An invalid
+PURL is returned as an error with the same message, and the API is not called.
 
 ### Missing required parameters
 
@@ -253,6 +323,14 @@ PURL parsing lives in `ecosystems_cli/helpers/purl_parser.py`:
 - `parse_purl_with_version(purl)` returns `(type, name, version)`.
 - `purl_type_to_registry(type)` maps a PURL type to a registry name using
   `registries.yaml` (used only by the registry-name commands).
+- `normalize_purl(purl)` returns the canonical PURL and raises `ValueError`, with
+  the user-facing message, for an invalid one.
+- `PASS_THROUGH_PURL_FIELDS` lists the operations that send PURLs to the API
+  unchecked, and the query parameter or body field holding them. It is the one
+  place to register such an operation: the command generator gives that option
+  the `PURL` type (`commands/purl_options.py`), and the MCP server runs tool
+  arguments through `normalize_purl_fields`. Tests check that every entry exists
+  in its spec and has a validating CLI option.
 
 For a scoped or namespaced PURL, the namespace and name are recombined with
 the ecosystem's separator: a forward slash for most types (e.g.

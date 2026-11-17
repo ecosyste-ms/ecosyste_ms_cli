@@ -2,11 +2,27 @@
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Callable, Dict, Optional, Tuple
+from typing import Any, Callable, Dict, Optional, Tuple
 
 import click
 import yaml
-from packageurl import PackageURL
+from packageurl import PackageURL, ValidationSeverity
+from packageurl.validate import DEFINITIONS_BY_TYPE
+
+from ecosystems_cli.exceptions import InvalidParameterError
+
+# Operations that send PURLs to the API as given, mapped to the query parameter
+# or request-body field that holds them (one PURL, or a list of PURLs). Their
+# APIs don't reject a bad PURL: a malformed one comes back as "missing" or is
+# dropped from the results, and only the canonical form matches. So these PURLs
+# are validated and normalized locally: the CLI gives the matching options the
+# PURL type (commands/purl_options.py) and the MCP server normalizes tool
+# arguments, both through normalize_purl_fields / normalize_purl.
+PASS_THROUGH_PURL_FIELDS: Dict[Tuple[str, str], str] = {
+    ("packages", "lookupPurl"): "purl",
+    ("packages", "bulkLookupPurls"): "purls",
+    ("packages", "bulkLookupPackages"): "purls",
+}
 
 # Canonical registry per PURL type, for types served by multiple registries.
 # registries.yaml is sorted alphabetically, so plain first-match would pick a
@@ -145,6 +161,65 @@ def parse_purl_with_version(purl: str) -> Tuple[Optional[str], Optional[str], Op
     except (ValueError, AttributeError):
         # Return None for invalid PURLs
         return None, None, None
+
+
+def normalize_purl(purl: Any) -> str:
+    """Return the canonical form of a PURL, raising ``ValueError`` if it is invalid.
+
+    Canonicalization follows the PURL spec as implemented by ``packageurl``: the
+    type is lowercased, names are normalized per type (e.g. npm and pypi names
+    lowercased, ``_`` -> ``-`` for pypi), and ``@`` in an npm scope is
+    percent-encoded. Examples:
+
+        pkg:NPM/Lodash@4.17.21 -> pkg:npm/lodash@4.17.21
+        pkg:npm/@babel/core@7.22.0 -> pkg:npm/%40babel/core@7.22.0
+
+    The ``ValueError`` message is user-facing; the CLI and the MCP server both
+    report it as is.
+    """
+    error = ValueError(f"Invalid PURL: {purl!r}. Expected format: pkg:type/name[@version] (e.g. pkg:npm/lodash@4.17.21).")
+    if not isinstance(purl, str):
+        raise error
+    try:
+        purl_obj = PackageURL.from_string(purl)
+    except ValueError:
+        raise error from None
+
+    # Parsing does not apply the per-type rules (e.g. maven requires a
+    # namespace). Enforce them, but only for types packageurl knows: an
+    # unknown type is reported as an error too, and ecosyste.ms serves
+    # types (bower, julia, ...) that packageurl has no definition for.
+    if purl_obj.type in DEFINITIONS_BY_TYPE:
+        problems = [m.message for m in purl_obj.validate() if m.severity == ValidationSeverity.ERROR]
+        if problems:
+            raise ValueError(f"Invalid PURL: {purl!r}. {'; '.join(problems)}.")
+
+    return purl_obj.to_string()
+
+
+def normalize_purl_fields(api: str, operation_id: str, params: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Normalize an operation's pass-through PURL field in a parameter or body dict.
+
+    Looks up the field in ``PASS_THROUGH_PURL_FIELDS`` and returns a copy of
+    ``params`` with that field's PURL (or each PURL in a list) normalized. Other
+    operations, and dicts without the field, are returned unchanged.
+
+    Raises:
+        InvalidParameterError: when a PURL is invalid, naming the field.
+    """
+    field = PASS_THROUGH_PURL_FIELDS.get((api, operation_id))
+    if not isinstance(params, dict) or field not in params:
+        return params
+
+    value = params[field]
+    try:
+        if isinstance(value, (list, tuple)):
+            normalized: Any = [normalize_purl(item) for item in value]
+        else:
+            normalized = normalize_purl(value)
+    except ValueError as e:
+        raise InvalidParameterError(field, str(e)) from None
+    return {**params, field: normalized}
 
 
 def apply_purl(

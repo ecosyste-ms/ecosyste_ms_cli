@@ -27,7 +27,8 @@ def build_body_decorators(request_body: dict) -> Tuple[List, List[str]]:
     Auto-generated commands map path/query parameters from ``parameters``; this
     covers the other input channel -- a ``requestBody`` -- by turning each
     top-level property of its ``application/json`` schema into a ``--option``.
-    Array properties become repeatable (``multiple=True``) options.
+    Array properties become repeatable (``multiple=True``) options; a required
+    array needs at least one value.
 
     Returns the decorators plus the list of body property names, so the caller
     can separate body fields from path/query kwargs when invoking the API
@@ -49,7 +50,15 @@ def build_body_decorators(request_body: dict) -> Tuple[List, List[str]]:
         description = prop_schema.get("description", "")
 
         if prop_type == "array":
-            decorators.append(click.option(f"--{option_name}", prop_name, multiple=True, help=description))
+            decorators.append(
+                click.option(
+                    f"--{option_name}",
+                    prop_name,
+                    multiple=True,
+                    help=description,
+                    required=prop_name in required,
+                )
+            )
         else:
             click_type = None
             if prop_type == "integer":

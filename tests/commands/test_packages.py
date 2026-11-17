@@ -1169,3 +1169,170 @@ class TestPackagesCommands:
             body={"purls": ["pkg:npm/a", "pkg:npm/b"], "ecosystem": "npm"},
         )
         mock_print_output.assert_called_once()
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_lookup_purl_passes_purl_as_query_param(self, mock_print_output, mock_api_factory):
+        mock_api_factory.call.return_value = {"purl": "pkg:npm/lodash@4.17.20", "match_status": "matched"}
+
+        result = self.runner.invoke(
+            self.packages_group,
+            ["lookup_purl", "--purl", "pkg:npm/lodash@4.17.20"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "packages",
+            "lookupPurl",
+            path_params={},
+            query_params={"purl": "pkg:npm/lodash@4.17.20"},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+        )
+        mock_print_output.assert_called_once()
+
+    def test_lookup_purl_requires_purl(self):
+        result = self.runner.invoke(self.packages_group, ["lookup_purl"], obj={"timeout": 20, "format": "json"})
+        assert result.exit_code == 2
+        assert "--purl" in result.output
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    @mock.patch("ecosystems_cli.commands.execution.print_output")
+    def test_bulk_lookup_purls_sends_array_body(self, mock_print_output, mock_api_factory):
+        mock_api_factory.call.return_value = []
+
+        result = self.runner.invoke(
+            self.packages_group,
+            ["bulk_lookup_purls", "--purls", "pkg:npm/a@1.0.0", "--purls", "pkg:pypi/b@2.0.0"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0
+        mock_api_factory.call.assert_called_once_with(
+            "packages",
+            "bulkLookupPurls",
+            path_params={},
+            query_params={},
+            timeout=mock.ANY,
+            mailto=mock.ANY,
+            base_url=mock.ANY,
+            body={"purls": ["pkg:npm/a@1.0.0", "pkg:pypi/b@2.0.0"]},
+        )
+        mock_print_output.assert_called_once()
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    def test_bulk_lookup_purls_requires_purls(self, mock_api_factory):
+        """purls is a required body field, so it is enforced before any request is sent."""
+        result = self.runner.invoke(self.packages_group, ["bulk_lookup_purls"], obj={"timeout": 20, "format": "json"})
+
+        assert result.exit_code == 2
+        assert "--purls" in result.output
+        mock_api_factory.call.assert_not_called()
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    def test_lookup_purl_normalizes_purl(self, mock_api_factory):
+        """The PURL is sent in canonical form, so lookups match the decomposing commands."""
+        mock_api_factory.call.return_value = {}
+
+        result = self.runner.invoke(
+            self.packages_group,
+            ["lookup_purl", "--purl", "pkg:NPM/Lodash@4.17.21"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0, result.output
+        assert mock_api_factory.call.call_args.kwargs["query_params"] == {"purl": "pkg:npm/lodash@4.17.21"}
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    def test_lookup_purl_rejects_invalid_purl(self, mock_api_factory):
+        """The API answers a malformed PURL with match_status "missing"; reject it locally instead."""
+        result = self.runner.invoke(
+            self.packages_group,
+            ["lookup_purl", "--purl", "invalid-purl"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 2
+        assert "Invalid PURL: 'invalid-purl'" in result.output
+        mock_api_factory.call.assert_not_called()
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    def test_lookup_purl_rejects_purl_breaking_type_rules(self, mock_api_factory):
+        """A maven PURL without a namespace parses, but is still invalid; reject it before any request."""
+        result = self.runner.invoke(
+            self.packages_group,
+            ["lookup_purl", "--purl", "pkg:maven/commons-lang3@3.12.0"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 2
+        assert "Namespace is required for purl type: 'maven'" in result.output
+        mock_api_factory.call.assert_not_called()
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    def test_bulk_lookup_purls_normalizes_each_purl(self, mock_api_factory):
+        mock_api_factory.call.return_value = []
+
+        result = self.runner.invoke(
+            self.packages_group,
+            ["bulk_lookup_purls", "--purls", "pkg:NPM/Lodash@4.17.21", "--purls", "pkg:npm/@babel/core@7.22.0"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0, result.output
+        assert mock_api_factory.call.call_args.kwargs["body"] == {
+            "purls": ["pkg:npm/lodash@4.17.21", "pkg:npm/%40babel/core@7.22.0"]
+        }
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    def test_bulk_lookup_purls_rejects_invalid_purl(self, mock_api_factory):
+        result = self.runner.invoke(
+            self.packages_group,
+            ["bulk_lookup_purls", "--purls", "pkg:npm/lodash", "--purls", "invalid-purl"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 2
+        assert "Invalid PURL: 'invalid-purl'" in result.output
+        mock_api_factory.call.assert_not_called()
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    def test_bulk_lookup_packages_normalizes_purls(self, mock_api_factory):
+        mock_api_factory.call.return_value = []
+
+        result = self.runner.invoke(
+            self.packages_group,
+            ["bulk_lookup_packages", "--purls", "pkg:NPM/Lodash", "--purls", "pkg:npm/@babel/core"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 0, result.output
+        assert mock_api_factory.call.call_args.kwargs["body"] == {"purls": ["pkg:npm/lodash", "pkg:npm/%40babel/core"]}
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    def test_bulk_lookup_packages_rejects_invalid_purl(self, mock_api_factory):
+        """The API silently drops a malformed PURL from the results; reject it locally instead."""
+        result = self.runner.invoke(
+            self.packages_group,
+            ["bulk_lookup_packages", "--purls", "pkg:npm/lodash", "--purls", "invalid-purl"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 2
+        assert "Invalid PURL: 'invalid-purl'" in result.output
+        mock_api_factory.call.assert_not_called()
+
+
+def test_every_pass_through_purl_field_has_a_validating_cli_option():
+    """The CLI validates every PASS_THROUGH_PURL_FIELDS entry, for any API."""
+    from ecosystems_cli.cli import main
+    from ecosystems_cli.commands.generator import APICommandGenerator
+    from ecosystems_cli.commands.purl_options import PURL
+    from ecosystems_cli.helpers.purl_parser import PASS_THROUGH_PURL_FIELDS
+
+    for (api, operation_id), field in PASS_THROUGH_PURL_FIELDS.items():
+        command = main.commands[api].commands[APICommandGenerator.operation_id_to_command_name(operation_id)]
+        option = next(p for p in command.params if p.name == field)
+        assert option.type is PURL, (api, operation_id)
