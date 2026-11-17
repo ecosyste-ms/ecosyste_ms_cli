@@ -287,6 +287,16 @@ ecosystems packages lookup_purl --purl "invalid-purl"
 #        format: pkg:type/name[@version] (e.g. pkg:npm/lodash@4.17.21).
 ```
 
+A PURL that parses but breaks its type's rules is rejected too, for the types
+`packageurl` defines. Types it doesn't define, such as `bower`, are passed
+through unchecked:
+
+```bash
+ecosystems packages lookup_purl --purl "pkg:maven/commons-lang3@3.12.0"
+# Error: Invalid value for '--purl': Invalid PURL:
+#        'pkg:maven/commons-lang3@3.12.0'. Namespace is required for purl type: 'maven'.
+```
+
 They also send each PURL in its canonical form, because these endpoints match
 only the canonical form: `pkg:NPM/Lodash@4.17.21` is sent as
 `pkg:npm/lodash@4.17.21`. Results show the PURL as sent, so a scoped npm

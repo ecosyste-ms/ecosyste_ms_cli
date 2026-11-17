@@ -227,6 +227,8 @@ def test_purl_type_to_registry_unknown():
         ("pkg:pypi/Django_Rest@1.0", "pkg:pypi/django-rest@1.0"),
         ("pkg:maven/org.apache.commons/commons-lang3@3.12.0", "pkg:maven/org.apache.commons/commons-lang3@3.12.0"),
         ("pkg:gem/rails@7.0.0?platform=ruby", "pkg:gem/rails@7.0.0?platform=ruby"),
+        # Types packageurl has no rules for are passed through, not rejected.
+        ("pkg:bower/jquery@3.7.1", "pkg:bower/jquery@3.7.1"),
     ],
 )
 def test_normalize_purl(purl, expected):
@@ -234,7 +236,19 @@ def test_normalize_purl(purl, expected):
     assert normalize_purl(purl) == expected
 
 
-@pytest.mark.parametrize("purl", ["", "invalid-purl", "npm/lodash", "pkg:npm", "pkg:npm/"])
+@pytest.mark.parametrize(
+    "purl",
+    [
+        "",
+        "invalid-purl",
+        "npm/lodash",
+        "pkg:npm",
+        "pkg:npm/",
+        # Parse fine but break the type's rules: maven requires a namespace, pypi prohibits one.
+        "pkg:maven/commons-lang3@3.12.0",
+        "pkg:pypi/foo/bar@1.0",
+    ],
+)
 def test_normalize_purl_rejects_invalid(purl):
     with pytest.raises(ValueError):
         normalize_purl(purl)
@@ -244,6 +258,12 @@ def test_normalize_purl_rejects_invalid(purl):
 def test_normalize_purl_rejects_non_strings(value):
     with pytest.raises(ValueError, match="Invalid PURL"):
         normalize_purl(value)
+
+
+def test_normalize_purl_error_message_names_type_rule():
+    with pytest.raises(ValueError) as excinfo:
+        normalize_purl("pkg:maven/commons-lang3@3.12.0")
+    assert "Namespace is required for purl type: 'maven'" in str(excinfo.value)
 
 
 def test_normalize_purl_error_message():

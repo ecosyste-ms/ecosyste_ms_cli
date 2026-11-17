@@ -1195,7 +1195,7 @@ class TestPackagesCommands:
 
     def test_lookup_purl_requires_purl(self):
         result = self.runner.invoke(self.packages_group, ["lookup_purl"], obj={"timeout": 20, "format": "json"})
-        assert result.exit_code != 0
+        assert result.exit_code == 2
         assert "--purl" in result.output
 
     @mock.patch("ecosystems_cli.commands.execution.api_factory")
@@ -1227,7 +1227,7 @@ class TestPackagesCommands:
         """purls is a required body field, so it is enforced before any request is sent."""
         result = self.runner.invoke(self.packages_group, ["bulk_lookup_purls"], obj={"timeout": 20, "format": "json"})
 
-        assert result.exit_code != 0
+        assert result.exit_code == 2
         assert "--purls" in result.output
         mock_api_factory.call.assert_not_called()
 
@@ -1256,6 +1256,19 @@ class TestPackagesCommands:
 
         assert result.exit_code == 2
         assert "Invalid PURL: 'invalid-purl'" in result.output
+        mock_api_factory.call.assert_not_called()
+
+    @mock.patch("ecosystems_cli.commands.execution.api_factory")
+    def test_lookup_purl_rejects_purl_breaking_type_rules(self, mock_api_factory):
+        """A maven PURL without a namespace parses, but is still invalid; reject it before any request."""
+        result = self.runner.invoke(
+            self.packages_group,
+            ["lookup_purl", "--purl", "pkg:maven/commons-lang3@3.12.0"],
+            obj={"timeout": 20, "format": "json"},
+        )
+
+        assert result.exit_code == 2
+        assert "Namespace is required for purl type: 'maven'" in result.output
         mock_api_factory.call.assert_not_called()
 
     @mock.patch("ecosystems_cli.commands.execution.api_factory")

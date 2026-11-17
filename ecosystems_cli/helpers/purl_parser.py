@@ -6,7 +6,8 @@ from typing import Any, Callable, Dict, Optional, Tuple
 
 import click
 import yaml
-from packageurl import PackageURL
+from packageurl import PackageURL, ValidationSeverity
+from packageurl.validate import DEFINITIONS_BY_TYPE
 
 from ecosystems_cli.exceptions import InvalidParameterError
 
@@ -180,9 +181,20 @@ def normalize_purl(purl: Any) -> str:
     if not isinstance(purl, str):
         raise error
     try:
-        return PackageURL.from_string(purl).to_string()
+        purl_obj = PackageURL.from_string(purl)
     except ValueError:
         raise error from None
+
+    # Parsing does not apply the per-type rules (e.g. maven requires a
+    # namespace). Enforce them, but only for types packageurl knows: an
+    # unknown type is reported as an error too, and ecosyste.ms serves
+    # types (bower, julia, ...) that packageurl has no definition for.
+    if purl_obj.type in DEFINITIONS_BY_TYPE:
+        problems = [m.message for m in purl_obj.validate() if m.severity == ValidationSeverity.ERROR]
+        if problems:
+            raise ValueError(f"Invalid PURL: {purl!r}. {'; '.join(problems)}.")
+
+    return purl_obj.to_string()
 
 
 def normalize_purl_fields(api: str, operation_id: str, params: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
