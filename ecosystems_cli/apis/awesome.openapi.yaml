@@ -20,23 +20,37 @@ servers:
 paths:
   "/projects":
     get:
-      description: get projects
+      description: Get projects that have been synced.
       operationId: getProjects
       tags:
       - projects
       parameters:
       - name: page
         in: query
-        description: pagination page number
+        description: Page number. Pages above 10000 are rejected with a 400 response.
         required: false
         schema:
           type: integer
+          minimum: 1
+          maximum: 10000
+          default: 1
       - name: per_page
         in: query
-        description: Number of records to return
+        description: Number of records to return per page. Values above 1000 are reduced
+          to 1000.
         required: false
         schema:
           type: integer
+          minimum: 1
+          maximum: 1000
+          default: 100
+      - name: keyword
+        in: query
+        description: Only return projects tagged with this repository topic. Must
+          match the topic exactly.
+        required: false
+        schema:
+          type: string
       responses:
         200:
           description: OK
@@ -48,7 +62,7 @@ paths:
                   "$ref": "#/components/schemas/Project"
   "/projects/{id}":
     get:
-      description: get a project by id
+      description: get a project by slug or id
       operationId: getProject
       tags:
       - projects
@@ -56,9 +70,14 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
+          type: string
         required: true
-        description: id of the project
+        description: Project slug in `host/owner/name` form. Percent-encoding the
+          slashes is recommended. Slashes sent as-is also work, but a slug ending
+          in `/lists` or `/ping` is treated as that nested route when the slug before
+          it is also a project. A numeric project ID is also accepted and redirects
+          to the slug URL.
+        example: github.com/bcoe/awesome-cross-platform-nodejs
       responses:
         200:
           description: OK
@@ -68,7 +87,7 @@ paths:
                 "$ref": "#/components/schemas/Project"
   "/projects/{id}/lists":
     get:
-      description: get lists of a project
+      description: Get displayable lists that include a project.
       operationId: getProjectLists
       tags:
       - projects
@@ -76,21 +95,79 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
+          type: string
         required: true
-        description: id of the project
+        description: Project slug in `host/owner/name` form. Percent-encoding the
+          slashes is recommended. Slashes sent as-is also work, but a slug ending
+          in `/lists` or `/ping` is treated as that nested route when the slug before
+          it is also a project. A numeric project ID is also accepted and redirects
+          to the slug URL.
+        example: github.com/bcoe/awesome-cross-platform-nodejs
       - name: page
         in: query
-        description: pagination page number
+        description: Page number. Pages above 10000 are rejected with a 400 response.
         required: false
         schema:
           type: integer
+          minimum: 1
+          maximum: 10000
+          default: 1
       - name: per_page
         in: query
-        description: Number of records to return
+        description: Number of records to return per page. Values above 1000 are reduced
+          to 1000.
         required: false
         schema:
           type: integer
+          minimum: 1
+          maximum: 1000
+          default: 100
+      - name: topic
+        in: query
+        description: Only return lists tagged with this repository topic. Must match
+          the topic exactly.
+        required: false
+        schema:
+          type: string
+      - name: language
+        in: query
+        description: Only return lists whose primary programming language is this
+          one, e.g. `Ruby`. Must match exactly; TypeScript lists are counted as `JavaScript`.
+        required: false
+        schema:
+          type: string
+      - name: natural_language
+        in: query
+        description: Only return lists written in this natural language, given as
+          the language code reported in `natural_language`, e.g. `zh`. Matched regardless
+          of letter case.
+        required: false
+        schema:
+          type: string
+      - name: sort
+        in: query
+        description: Field to sort by. When neither `sort` nor `order` is given, lists
+          are sorted by `stars`, most first. An unknown field, or `order` without
+          `sort`, sorts by `updated_at`.
+        required: false
+        schema:
+          type: string
+          enum:
+          - updated_at
+          - created_at
+          - stars
+          - projects_count
+          - name
+      - name: order
+        in: query
+        description: Sort direction. Any value other than `asc` sorts descending.
+          Lists without a value for the sort field come last either way.
+        required: false
+        schema:
+          type: string
+          enum:
+          - asc
+          - desc
       responses:
         200:
           description: OK
@@ -102,7 +179,10 @@ paths:
                   "$ref": "#/components/schemas/List"
   "/projects/lookup":
     get:
-      description: lookup project by url
+      description: Look up a project by URL. If no project exists for the URL, one
+        is created and a sync is enqueued, so the response may not include repository
+        data yet. A sync is also enqueued for a project that hasn't been synced in
+        the last day. Projects with blocked topics or hidden owners return 404.
       operationId: lookupProject
       tags:
       - projects
@@ -113,6 +193,7 @@ paths:
         required: true
         schema:
           type: string
+        example: https://github.com/bcoe/awesome-cross-platform-nodejs
       responses:
         200:
           description: OK
@@ -120,53 +201,78 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Project"
-  "/projects/packages":
-    get:
-      description: get projects with packages
-      operationId: getProjectPackages
-      tags:
-      - projects
-      parameters:
-      - name: page
-        in: query
-        description: pagination page number
-        required: false
-        schema:
-          type: integer
-      - name: per_page
-        in: query
-        description: Number of records to return
-        required: false
-        schema:
-          type: integer
-      responses:
-        200:
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  "$ref": "#/components/schemas/Project"
   "/lists":
     get:
-      description: get lists
+      description: Get displayable lists.
       operationId: getLists
       tags:
       - lists
       parameters:
       - name: page
         in: query
-        description: pagination page number
+        description: Page number. Pages above 10000 are rejected with a 400 response.
         required: false
         schema:
           type: integer
+          minimum: 1
+          maximum: 10000
+          default: 1
       - name: per_page
         in: query
-        description: Number of records to return
+        description: Number of records to return per page. Values above 1000 are reduced
+          to 1000.
         required: false
         schema:
           type: integer
+          minimum: 1
+          maximum: 1000
+          default: 100
+      - name: topic
+        in: query
+        description: Only return lists tagged with this repository topic. Must match
+          the topic exactly.
+        required: false
+        schema:
+          type: string
+      - name: language
+        in: query
+        description: Only return lists whose primary programming language is this
+          one, e.g. `Ruby`. Must match exactly; TypeScript lists are counted as `JavaScript`.
+        required: false
+        schema:
+          type: string
+      - name: natural_language
+        in: query
+        description: Only return lists written in this natural language, given as
+          the language code reported in `natural_language`, e.g. `zh`. Matched regardless
+          of letter case.
+        required: false
+        schema:
+          type: string
+      - name: sort
+        in: query
+        description: Field to sort by. When neither `sort` nor `order` is given, lists
+          are sorted by `stars`, most first. An unknown field, or `order` without
+          `sort`, sorts by `updated_at`.
+        required: false
+        schema:
+          type: string
+          enum:
+          - updated_at
+          - created_at
+          - stars
+          - projects_count
+          - name
+      - name: order
+        in: query
+        description: Sort direction. Any value other than `asc` sorts descending.
+          Lists without a value for the sort field come last either way.
+        required: false
+        schema:
+          type: string
+          enum:
+          - asc
+          - desc
       responses:
         200:
           description: OK
@@ -178,7 +284,7 @@ paths:
                   "$ref": "#/components/schemas/List"
   "/lists/{id}":
     get:
-      description: get a list by id
+      description: get a list by slug or id
       operationId: getList
       tags:
       - lists
@@ -186,9 +292,14 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
+          type: string
         required: true
-        description: id of the list
+        description: List slug in `owner/name` form. Percent-encoding the slash is
+          recommended. A slash sent as-is also works, but a slug ending in `/projects`
+          or `/list_projects` is treated as that nested route when the owner is also
+          a numeric list ID. A numeric list ID is also accepted and redirects to the
+          slug URL.
+        example: sindresorhus/awesome
       responses:
         200:
           description: OK
@@ -220,21 +331,40 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
+          type: string
         required: true
-        description: id of the list
+        description: List slug in `owner/name` form. Percent-encoding the slash is
+          recommended. A slash sent as-is also works, but a slug ending in `/projects`
+          or `/list_projects` is treated as that nested route when the owner is also
+          a numeric list ID. A numeric list ID is also accepted and redirects to the
+          slug URL.
+        example: sindresorhus/awesome
       - name: page
         in: query
-        description: pagination page number
+        description: Page number. Pages above 10000 are rejected with a 400 response.
         required: false
         schema:
           type: integer
+          minimum: 1
+          maximum: 10000
+          default: 1
       - name: per_page
         in: query
-        description: Number of records to return
+        description: Number of records to return per page. Values above 1000 are reduced
+          to 1000.
         required: false
         schema:
           type: integer
+          minimum: 1
+          maximum: 1000
+          default: 100
+      - name: keyword
+        in: query
+        description: Only return projects tagged with this repository topic. Must
+          match the topic exactly.
+        required: false
+        schema:
+          type: string
       responses:
         200:
           description: OK
@@ -254,9 +384,14 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
+          type: string
         required: true
-        description: id of the list
+        description: List slug in `owner/name` form. Percent-encoding the slash is
+          recommended. A slash sent as-is also works, but a slug ending in `/projects`
+          or `/list_projects` is treated as that nested route when the owner is also
+          a numeric list ID. A numeric list ID is also accepted and redirects to the
+          slug URL.
+        example: sindresorhus/awesome
       - name: category
         in: query
         description: category of the list project
@@ -271,16 +406,23 @@ paths:
           type: string
       - name: page
         in: query
-        description: pagination page number
+        description: Page number. Pages above 10000 are rejected with a 400 response.
         required: false
         schema:
           type: integer
+          minimum: 1
+          maximum: 10000
+          default: 1
       - name: per_page
         in: query
-        description: Number of records to return
+        description: Number of records to return per page. Values above 1000 are reduced
+          to 1000.
         required: false
         schema:
           type: integer
+          minimum: 1
+          maximum: 1000
+          default: 100
       responses:
         200:
           description: OK
@@ -292,7 +434,10 @@ paths:
                   "$ref": "#/components/schemas/ListProject"
   "/lists/lookup":
     get:
-      description: lookup list by url
+      description: Look up a list by URL. If no list exists for the URL, one is created
+        and a sync is enqueued, so the response may not include repository data yet.
+        A sync is also enqueued for a list that hasn't been synced in the last day.
+        Unlike `GET /lists`, lists that aren't displayable are returned too.
       operationId: lookupList
       tags:
       - lists
@@ -303,6 +448,7 @@ paths:
         required: true
         schema:
           type: string
+        example: https://github.com/sindresorhus/awesome
       responses:
         200:
           description: OK
@@ -312,23 +458,37 @@ paths:
                 "$ref": "#/components/schemas/List"
   "/topics":
     get:
-      description: get topics
+      description: Get topics, most used on GitHub first.
       operationId: getTopics
       tags:
       - topics
       parameters:
       - name: page
         in: query
-        description: pagination page number
+        description: Page number. Pages above 10000 are rejected with a 400 response.
         required: false
         schema:
           type: integer
+          minimum: 1
+          maximum: 10000
+          default: 1
       - name: per_page
         in: query
-        description: Number of records to return
+        description: Number of records to return per page. Values above 1000 are reduced
+          to 1000.
         required: false
         schema:
           type: integer
+          minimum: 1
+          maximum: 1000
+          default: 100
+      - name: query
+        in: query
+        description: Only return topics whose name or short description contains this
+          text, ignoring case.
+        required: false
+        schema:
+          type: string
       responses:
         200:
           description: OK
@@ -348,9 +508,10 @@ paths:
       - in: path
         name: slug
         schema:
-          type: integer
+          type: string
         required: true
-        description: slug of the topic
+        description: Slug of the topic, matched regardless of letter case.
+        example: ruby
       responses:
         200:
           description: OK
@@ -456,6 +617,12 @@ components:
           format: date-time
         primary_language:
           type: string
+        natural_language:
+          type: string
+          nullable: true
+          description: Code of the natural language the list is written in, detected
+            from its README, e.g. `en`, `zh` or `zh-TW`. Null when it can't be reliably
+            detected.
         list_of_lists:
           type: boolean
         displayable:

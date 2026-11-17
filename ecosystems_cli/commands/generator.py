@@ -35,7 +35,6 @@ HELP_OVERRIDES = {
     ("awesome", "getProject"): "get a project by host/owner/name or id",
     ("awesome", "getProjectLists"): "list awesome lists that include a project (host/owner/name; numeric ids ignore paging)",
     ("awesome", "lookupProject"): "lookup a project by repository URL (registers unknown URLs)",
-    ("awesome", "getProjectPackages"): "list packages of projects in awesome lists",
     ("awesome", "getLists"): "list awesome lists",
     ("awesome", "getList"): "get an awesome list by owner/name or id",
     ("awesome", "getListProjects"): "list projects in an awesome list (owner/name; numeric ids ignore filters and paging)",

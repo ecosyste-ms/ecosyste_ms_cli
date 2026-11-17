@@ -115,3 +115,24 @@ def test_get_advisory_help_grammar():
     result = runner.invoke(cli, ["advisories", "--help"])
     assert "get an advisory by uuid" in result.output
     assert "a advisories" not in result.output
+
+
+def test_help_overrides_match_spec_operations():
+    """Every HELP_OVERRIDES key names an operation in the vendored spec.
+
+    Catches overrides left behind when an upstream spec refresh removes or
+    renames an operation.
+    """
+    from ecosystems_cli.commands.generator import HELP_OVERRIDES
+    from ecosystems_cli.helpers.load_api_spec import load_api_spec
+
+    operations = {}
+    for api_name, _ in HELP_OVERRIDES:
+        if api_name not in operations:
+            spec = load_api_spec(api_name)
+            operations[api_name] = {
+                op.get("operationId") for path in spec["paths"].values() for op in path.values() if isinstance(op, dict)
+            }
+
+    stale = [key for key in HELP_OVERRIDES if key[1] not in operations[key[0]]]
+    assert stale == []
